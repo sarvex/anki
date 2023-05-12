@@ -124,20 +124,14 @@ class AddonMeta:
         return self.provided_name or self.dir_name
 
     def ankiweb_id(self) -> int | None:
-        m = ANKIWEB_ID_RE.match(self.dir_name)
-        if m:
-            return int(m.group(0))
-        else:
-            return None
+        return int(m.group(0)) if (m := ANKIWEB_ID_RE.match(self.dir_name)) else None
 
     def compatible(self) -> bool:
         min = self.min_point_version
         if min is not None and current_point_version < min:
             return False
         max = self.max_point_version
-        if max is not None and max < 0 and current_point_version > abs(max):
-            return False
-        return True
+        return max is None or max >= 0 or current_point_version <= abs(max)
 
     def is_latest(self, server_update_time: int) -> bool:
         return self.installed_at >= server_update_time
@@ -172,9 +166,7 @@ def package_name_valid(name: str) -> bool:
     # tries to escape to parent?
     root = os.getcwd()
     subfolder = os.path.abspath(os.path.join(root, name))
-    if root.startswith(subfolder):
-        return False
-    return True
+    return not root.startswith(subfolder)
 
 
 # fixme: this class should not have any GUI code in it
@@ -232,9 +224,7 @@ class AddonManager:
 
     def addonsFolder(self, module: str | None = None) -> str:
         root = self.mw.pm.addonFolder()
-        if module is None:
-            return root
-        return os.path.join(root, module)
+        return root if module is None else os.path.join(root, module)
 
     def loadAddons(self) -> None:
         for addon in self.all_addon_meta():
@@ -301,10 +291,10 @@ class AddonManager:
                 return json.load(f)
         except json.JSONDecodeError as e:
             print(f"json error in add-on {module}:\n{e}")
-            return dict()
+            return {}
         except:
             # missing meta file, etc
-            return dict()
+            return {}
 
     # in new code, use write_addon_meta() instead
     def writeAddonMeta(self, module: str, meta: dict[str, Any]) -> None:
@@ -316,8 +306,7 @@ class AddonManager:
         addon = self.addon_meta(module)
         should_enable = enable if enable is not None else not addon.enabled
         if should_enable is True:
-            conflicting = self._disableConflicting(module)
-            if conflicting:
+            if conflicting := self._disableConflicting(module):
                 addons = ", ".join(self.addonName(f) for f in conflicting)
                 showInfo(
                     tr.addons_the_following_addons_are_incompatible_with(
@@ -331,11 +320,11 @@ class AddonManager:
         self.write_addon_meta(addon)
 
     def ankiweb_addons(self) -> list[int]:
-        ids = []
-        for meta in self.all_addon_meta():
-            if meta.ankiweb_id() is not None:
-                ids.append(meta.ankiweb_id())
-        return ids
+        return [
+            meta.ankiweb_id()
+            for meta in self.all_addon_meta()
+            if meta.ankiweb_id() is not None
+        ]
 
     # Legacy helpers
     ######################################################################
@@ -586,11 +575,9 @@ class AddonManager:
             if is_latest:
                 addon.max_point_version = cur_max
                 updated = True
-            else:
-                # user is not up to date; only update if new version is stricter
-                if cur_max is not None and cur_max < addon.max_point_version:
-                    addon.max_point_version = cur_max
-                    updated = True
+            elif cur_max is not None and cur_max < addon.max_point_version:
+                addon.max_point_version = cur_max
+                updated = True
 
         # if min different to the stored value
         cur_min = item.current_branch_min_point_ver
@@ -598,11 +585,9 @@ class AddonManager:
             if is_latest:
                 addon.min_point_version = cur_min
                 updated = True
-            else:
-                # user is not up to date; only update if new version is stricter
-                if cur_min is not None and cur_min > addon.min_point_version:
-                    addon.min_point_version = cur_min
-                    updated = True
+            elif cur_min is not None and cur_min > addon.min_point_version:
+                addon.min_point_version = cur_min
+                updated = True
 
         if updated:
             self.write_addon_meta(addon)
@@ -820,9 +805,8 @@ class AddonsDialog(QDialog):
         min = addon.min_point_version
         if min is not None and min > current_point_version:
             return f"Anki >= 2.1.{min}"
-        else:
-            max = abs(addon.max_point_version)
-            return f"Anki <= 2.1.{max}"
+        max = abs(addon.max_point_version)
+        return f"Anki <= 2.1.{max}"
 
     def should_grey(self, addon: AddonMeta) -> bool:
         return not addon.enabled or not addon.compatible()
@@ -941,15 +925,16 @@ class AddonsDialog(QDialog):
 
     def onInstallFiles(self, paths: list[str] | None = None) -> bool | None:
         if not paths:
-            filter = f"{tr.addons_packaged_anki_addon()} " + "({})".format(
-                " ".join(f"*{ext}" for ext in self.mgr.exts)
+            filter = (
+                f"{tr.addons_packaged_anki_addon()} "
+                + f'({" ".join(f"*{ext}" for ext in self.mgr.exts)})'
             )
             paths_ = getFile(
                 self, tr.addons_install_addons(), None, filter, key="addons", multi=True
             )
             paths = paths_  # type: ignore
-            if not paths:
-                return False
+        if not paths:
+            return False
 
         installAddonPackages(self.mgr, paths, parent=self, force_enable=True)
 
@@ -965,9 +950,7 @@ class AddonsDialog(QDialog):
         if not addon:
             return
 
-        # does add-on manage its own config?
-        act = self.mgr.configAction(addon)
-        if act:
+        if act := self.mgr.configAction(addon):
             ret = act()
             if ret is not False:
                 return
@@ -1034,7 +1017,7 @@ def download_addon(client: HttpClient, id: int) -> DownloadOk | DownloadError:
 
         fname = re.match(
             "attachment; filename=(.+)", resp.headers["content-disposition"]
-        ).group(1)
+        )[1]
 
         meta = extract_meta_from_download_url(resp.url)
 
@@ -1062,14 +1045,12 @@ def extract_meta_from_download_url(url: str) -> ExtractedDownloadMeta:
     urlobj = urlparse(url)
     query = parse_qs(urlobj.query)
 
-    meta = ExtractedDownloadMeta(
+    return ExtractedDownloadMeta(
         mod_time=int(query.get("t")[0]),
         min_point_version=int(query.get("minpt")[0]),
         max_point_version=int(query.get("maxpt")[0]),
         branch_index=int(query.get("bidx")[0]),
     )
-
-    return meta
 
 
 def download_log_to_html(log: list[DownloadLogEntry]) -> str:
@@ -1081,17 +1062,16 @@ def describe_log_entry(id_and_entry: DownloadLogEntry) -> str:
     buf = f"{id}: "
 
     if isinstance(entry, DownloadError):
-        if entry.status_code is not None:
-            if entry.status_code in (403, 404):
-                buf += tr.addons_invalid_code_or_addon_not_available()
-            else:
-                buf += tr.qt_misc_unexpected_response_code(val=entry.status_code)
-        else:
+        if entry.status_code is None:
             buf += (
                 tr.addons_please_check_your_internet_connection()
                 + "\n\n"
                 + str(entry.exception)
             )
+        elif entry.status_code in (403, 404):
+            buf += tr.addons_invalid_code_or_addon_not_available()
+        else:
+            buf += tr.qt_misc_unexpected_response_code(val=entry.status_code)
     elif isinstance(entry, InstallError):
         buf += entry.errmsg
     else:
@@ -1274,10 +1254,7 @@ class ChooseAddonsToUpdateList(QListWidget):
         self.refresh_header_check_state()
 
     def bool_to_check(self, check_bool: bool) -> Qt.CheckState:
-        if check_bool:
-            return Qt.CheckState.Checked
-        else:
-            return Qt.CheckState.Unchecked
+        return Qt.CheckState.Checked if check_bool else Qt.CheckState.Unchecked
 
     def checked(self, item: QListWidgetItem) -> bool:
         return item.checkState() == Qt.CheckState.Checked
@@ -1449,7 +1426,7 @@ def check_for_updates(
 
         if future.exception():
             # swallow network errors
-            print(str(future.exception()))
+            print(future.exception())
             result = []
         else:
             result = future.result()
@@ -1522,10 +1499,10 @@ def prompt_to_update(
         if not prompt_update:
             return
 
-    ids = ChooseAddonsToUpdateDialog(parent, mgr, updated_addons).ask()
-    if not ids:
+    if ids := ChooseAddonsToUpdateDialog(parent, mgr, updated_addons).ask():
+        download_addons(parent, mgr, ids, on_done, client)
+    else:
         return
-    download_addons(parent, mgr, ids, on_done, client)
 
 
 # Editing config
@@ -1573,8 +1550,7 @@ class ConfigEditor(QDialog):
         self.form.editor.setFont(font_mono)
 
     def updateHelp(self) -> None:
-        txt = self.mgr.addonConfigHelp(self.addon)
-        if txt:
+        if txt := self.mgr.addonConfigHelp(self.addon):
             self.form.help.stdHtml(txt, js=[], css=["css/addonconf.css"], context=self)
         else:
             self.form.help.setVisible(False)
@@ -1639,9 +1615,7 @@ class ConfigEditor(QDialog):
 
         if new_conf != self.conf:
             self.mgr.writeConfig(self.addon, new_conf)
-            # does the add-on define an action to be fired?
-            act = self.mgr.configUpdatedAction(self.addon)
-            if act:
+            if act := self.mgr.configUpdatedAction(self.addon):
                 act(new_conf)
 
         self.onClose()
@@ -1666,7 +1640,7 @@ def installAddonPackages(
         names = ",<br>".join(f"<b>{os.path.basename(p)}</b>" for p in paths)
         q = tr.addons_important_as_addons_are_programs_downloaded() % dict(names=names)
         if (
-            not showInfo(
+            showInfo(
                 q,
                 parent=parent,
                 title=tr.addons_install_anki_addon(),
@@ -1676,7 +1650,7 @@ def installAddonPackages(
                     QMessageBox.StandardButton.Yes,
                 ],
             )
-            == QMessageBox.StandardButton.Yes
+            != QMessageBox.StandardButton.Yes
         ):
             return False
 

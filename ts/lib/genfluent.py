@@ -109,31 +109,31 @@ def get_args(args: List[Variable]) -> str:
     if not args:
         return ""
     else:
-        for arg in args:
-            if typescript_arg_name(arg) != arg["name"]:
-                # we'll need to map variables to their fluent equiv
-                return ", " + map_args_to_real_names(args)
-
-        # variable names match, reference object instead
-        return ", args"
+        return next(
+            (
+                f", {map_args_to_real_names(args)}"
+                for arg in args
+                if typescript_arg_name(arg) != arg["name"]
+            ),
+            ", args",
+        )
 
 
 def typescript_arg_name(arg: Variable) -> str:
     name = stringcase.camelcase(arg["name"].replace("-", "_"))
-    if name == "new":
-        return "new_"
-    else:
-        return name
+    return "new_" if name == "new" else name
 
 
 def write(outfile, out) -> None:
     with open(outfile, "w", encoding="utf8") as f:
         f.write(
-            f"""// Copyright: Ankitects Pty Ltd and contributors
+            (
+                """// Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 """
-            + out
+                + out
+            )
         )
 
 

@@ -105,11 +105,8 @@ class AnkiWebPage(QWebEnginePage):
         buf = "JS %(t)s %(f)s:%(a)d %(b)s" % dict(
             t=level_str, a=line, f=srcID, b=f"{msg}\n"
         )
-        if "MathJax localStorage" in buf:
+        if "MathJax localStorage" in buf or "link preload" in buf:
             # silence localStorage noise
-            return
-        elif "link preload" in buf:
-            # silence 'link preload' warning on the first card
             return
         # ensure we don't try to write characters the terminal can't handle
         buf = buf.encode(sys.stdout.encoding, "backslashreplace").decode(
@@ -279,12 +276,15 @@ class AnkiWebView(QWebEngineView):
             return True
 
         if (
-            isinstance(evt, QMouseEvent)
-            and evt.type() == QEvent.Type.MouseButtonRelease
+            (
+                isinstance(evt, QMouseEvent)
+                and evt.type() == QEvent.Type.MouseButtonRelease
+            )
+            and evt.button() == Qt.MouseButton.MiddleButton
+            and is_lin
         ):
-            if evt.button() == Qt.MouseButton.MiddleButton and is_lin:
-                self.onMiddleClickPaste()
-                return True
+            self.onMiddleClickPaste()
+            return True
 
         return False
 
@@ -294,7 +294,7 @@ class AnkiWebView(QWebEngineView):
     def onEsc(self) -> None:
         w = self.parent()
         while w:
-            if isinstance(w, QDialog) or isinstance(w, QMainWindow):
+            if isinstance(w, (QDialog, QMainWindow)):
                 from aqt import mw
 
                 # esc in a child window closes the window
@@ -371,9 +371,7 @@ class AnkiWebView(QWebEngineView):
         super().load(url)
 
     def app_zoom_factor(self) -> float:
-        # overridden scale factor?
-        webscale = os.environ.get("ANKI_WEBSCALE")
-        if webscale:
+        if webscale := os.environ.get("ANKI_WEBSCALE"):
             return float(webscale)
 
         if qtmajor > 5 or is_mac:
@@ -502,16 +500,8 @@ html {{ {font} }}
         head = mw.baseHTML() + csstxt + web_content.head
         body_class = theme_manager.body_class()
 
-        if theme_manager.night_mode:
-            doc_class = "night-mode"
-        else:
-            doc_class = ""
-
-        if is_rtl(anki.lang.current_lang):
-            lang_dir = "rtl"
-        else:
-            lang_dir = "ltr"
-
+        doc_class = "night-mode" if theme_manager.night_mode else ""
+        lang_dir = "rtl" if is_rtl(anki.lang.current_lang) else "ltr"
         html = f"""
 <!doctype html>
 <html class="{doc_class}" dir="{lang_dir}">
@@ -531,11 +521,7 @@ html {{ {font} }}
     def webBundlePath(cls, path: str) -> str:
         from aqt import mw
 
-        if path.startswith("/"):
-            subpath = ""
-        else:
-            subpath = "/_anki/"
-
+        subpath = "" if path.startswith("/") else "/_anki/"
         return f"http://127.0.0.1:{mw.mediaServer.getPort()}{subpath}{path}"
 
     def bundledScript(self, fname: str) -> str:
@@ -590,11 +576,7 @@ html {{ {font} }}
         # or the underlying webview has been deleted
         from aqt import mw
 
-        if sip.isdeleted(self):
-            return True
-        if not mw.col and self.requiresCol:
-            return True
-        return False
+        return True if sip.isdeleted(self) else bool(not mw.col and self.requiresCol)
 
     def _onBridgeCmd(self, cmd: str) -> Any:
         if self._shouldIgnoreWebEvent():
@@ -605,19 +587,16 @@ html {{ {font} }}
             self.focusProxy().installEventFilter(self)
             self._filterSet = True
 
-        if cmd == "domDone":
+        if cmd == "close":
+            self.onEsc()
+        elif cmd == "domDone":
             self._domDone = True
             self._maybeRunActions()
-        elif cmd == "close":
-            self.onEsc()
         else:
             handled, result = gui_hooks.webview_did_receive_js_message(
                 (False, None), cmd, self._bridge_context
             )
-            if handled:
-                return result
-            else:
-                return self.onBridgeCmd(cmd)
+            return result if handled else self.onBridgeCmd(cmd)
 
     def defaultOnBridgeCmd(self, cmd: str) -> None:
         print("unhandled bridge cmd:", cmd)
@@ -684,10 +663,7 @@ html {{ {font} }}
         from aqt import mw
 
         self.set_open_links_externally(True)
-        if theme_manager.night_mode:
-            extra = "#night"
-        else:
-            extra = ""
+        extra = "#night" if theme_manager.night_mode else ""
         self.load_url(QUrl(f"{mw.serverURL()}_anki/pages/{name}.html{extra}"))
         self.add_dynamic_css_and_classes_then_show()
 

@@ -117,10 +117,7 @@ class ProgressManager:
                 # no current progress; safe to fire
                 func()
             else:
-                if repeat:
-                    # skip this time; we'll fire again
-                    pass
-                else:
+                if not repeat:
                     # retry in 100ms
                     self.single_shot(100, func, requires_collection)
 
@@ -296,15 +293,10 @@ class ProgressManager:
         self._showWin()
 
     def want_cancel(self) -> bool:
-        win = self._win
-        if win:
-            return win.wantCancel
-        else:
-            return False
+        return win.wantCancel if (win := self._win) else False
 
     def set_title(self, title: str) -> None:
-        win = self._win
-        if win:
+        if win := self._win:
             win.setWindowTitle(title)
 
 

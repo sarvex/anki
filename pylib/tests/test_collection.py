@@ -35,10 +35,7 @@ def test_create_open():
     col.close()
 
     # non-writeable dir
-    if is_win:
-        dir = "c:\root.anki2"
-    else:
-        dir = "/attachroot.anki2"
+    dir = "c:\root.anki2" if is_win else "/attachroot.anki2"
     assertException(Exception, lambda: aopen(dir))
     # reuse tmp file from before, test non-writeable file
     os.chmod(newPath, 0)
@@ -123,7 +120,7 @@ def test_addDelTags():
 def test_timestamps():
     col = getEmptyCol()
     assert len(col.models.all_names_and_ids()) == len(get_stock_notetypes(col))
-    for i in range(100):
+    for _ in range(100):
         _legacy_add_basic_model(col)
     assert len(col.models.all_names_and_ids()) == 100 + len(get_stock_notetypes(col))
 

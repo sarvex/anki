@@ -88,20 +88,16 @@ def aqt_data_path() -> Path:
     if getattr(sys, "frozen", False):
         prefix = Path(sys.prefix)
         path = prefix / "lib/_aqt/data"
-        if path.exists():
-            return path
-        else:
-            return prefix / "../Resources/_aqt/data"
+        return path if path.exists() else prefix / "../Resources/_aqt/data"
     else:
         import _aqt.colors
 
         data_folder = Path(inspect.getfile(_aqt.colors)).with_name("data")
         if data_folder.exists():
             return data_folder.absolute()
-        else:
-            # should only happen when running unit tests
-            print("warning, data folder not found")
-            return Path(".")
+        # should only happen when running unit tests
+        print("warning, data folder not found")
+        return Path(".")
 
 
 def aqt_data_folder() -> str:
@@ -415,8 +411,9 @@ class ButtonedDialog(QMessageBox):
         self.help = help
         self.setIcon(QMessageBox.Icon.Warning)
         self.setText(text)
-        for b in buttons:
-            self._buttons.append(self.addButton(b, QMessageBox.ButtonRole.AcceptRole))
+        self._buttons.extend(
+            self.addButton(b, QMessageBox.ButtonRole.AcceptRole) for b in buttons
+        )
         if help:
             self.addButton(tr.actions_help(), QMessageBox.ButtonRole.HelpRole)
             buttons.append(tr.actions_help())
@@ -444,8 +441,7 @@ def askUserDialog(
 ) -> ButtonedDialog:
     if not parent:
         parent = aqt.mw
-    diag = ButtonedDialog(text, buttons, parent, help, title=title)
-    return diag
+    return ButtonedDialog(text, buttons, parent, help, title=title)
 
 
 class GetTextDialog(QDialog):
@@ -528,10 +524,7 @@ def getText(
 
 def getOnlyText(*args: Any, **kwargs: Any) -> str:
     (s, r) = getText(*args, **kwargs)
-    if r:
-        return s
-    else:
-        return ""
+    return s if r else ""
 
 
 # fixme: these utilities could be combined into a single base class
@@ -670,9 +663,10 @@ def getSaveFile(
         dir = os.path.dirname(file)
         aqt.mw.pm.profile[config_key] = dir
         # check if it exists
-        if os.path.exists(file):
-            if not askUser(tr.qt_misc_this_file_exists_are_you_sure(), parent):
-                return None
+        if os.path.exists(file) and not askUser(
+            tr.qt_misc_this_file_exists_are_you_sure(), parent
+        ):
+            return None
     return file
 
 
@@ -693,11 +687,10 @@ def restoreGeom(
     key += "Geom"
     if existing_geom := aqt.mw.pm.profile.get(key):
         widget.restoreGeometry(existing_geom)
-        if is_mac and offset:
-            if qtmajor > 5 or qtminor > 6:
-                # bug in osx toolkit
-                s = widget.size()
-                widget.resize(s.width(), s.height() + offset * 2)
+        if is_mac and offset and (qtmajor > 5 or qtminor > 6):
+            # bug in osx toolkit
+            s = widget.size()
+            widget.resize(s.width(), s.height() + offset * 2)
         ensureWidgetInScreenBoundaries(widget)
     elif adjustSize:
         widget.adjustSize()
@@ -795,9 +788,13 @@ def restore_combo_index_for_session(
     indexKey = f"{key}ComboActiveIndex"
     text = aqt.mw.pm.session.get(textKey)
     index = aqt.mw.pm.session.get(indexKey)
-    if text is not None and index is not None:
-        if index < len(history) and history[index] == text:
-            widget.setCurrentIndex(index)
+    if (
+        text is not None
+        and index is not None
+        and index < len(history)
+        and history[index] == text
+    ):
+        widget.setCurrentIndex(index)
 
 
 def save_combo_history(comboBox: QComboBox, history: list[str], name: str) -> str:
@@ -828,8 +825,7 @@ def restore_combo_history(comboBox: QComboBox, name: str) -> list[str]:
 
 def mungeQA(col: Collection, txt: str) -> str:
     print("mungeQA() deprecated; use mw.prepare_card_text_for_display()")
-    txt = col.media.escape_media_filenames(txt)
-    return txt
+    return col.media.escape_media_filenames(txt)
 
 
 def openFolder(path: str) -> None:
@@ -841,15 +837,12 @@ def openFolder(path: str) -> None:
 
 
 def shortcut(key: str) -> str:
-    if is_mac:
-        return re.sub("(?i)ctrl", "Command", key)
-    return key
+    return re.sub("(?i)ctrl", "Command", key) if is_mac else key
 
 
 def maybeHideClose(bbox: QDialogButtonBox) -> None:
     if is_mac:
-        b = bbox.button(QDialogButtonBox.StandardButton.Close)
-        if b:
+        if b := bbox.button(QDialogButtonBox.StandardButton.Close):
             bbox.removeButton(b)
 
 
@@ -869,17 +862,11 @@ def add_close_shortcut(widg: QWidget) -> None:
 
 
 def downArrow() -> str:
-    if is_win:
-        return "▼"
-    # windows 10 is lacking the smaller arrow on English installs
-    return "▾"
+    return "▼" if is_win else "▾"
 
 
 def current_window() -> QWidget | None:
-    if widget := QApplication.focusWidget():
-        return widget.window()
-    else:
-        return None
+    return widget.window() if (widget := QApplication.focusWidget()) else None
 
 
 def send_to_trash(path: Path) -> None:
@@ -965,8 +952,7 @@ def closeTooltip() -> None:
 
 # true if invalid; print warning
 def checkInvalidFilename(str: str, dirsep: bool = True) -> bool:
-    bad = invalid_filename(str, dirsep)
-    if bad:
+    if bad := invalid_filename(str, dirsep):
         showWarning(tr.qt_misc_the_following_character_can_not_be(val=bad))
         return True
     return False
@@ -1084,10 +1070,7 @@ def supportText() -> str:
 
     def schedVer() -> str:
         try:
-            if mw.col.v3_scheduler():
-                return "3"
-            else:
-                return str(mw.col.sched_ver())
+            return "3" if mw.col.v3_scheduler() else str(mw.col.sched_ver())
         except:
             return "?"
 
@@ -1146,10 +1129,7 @@ def opengl_vendor() -> str | None:
         except ImportError as e:
             return None
 
-        if vf is None:
-            return None
-
-        return vf.glGetString(vf.GL_VENDOR)
+        return None if vf is None else vf.glGetString(vf.GL_VENDOR)
     finally:
         ctx.doneCurrent()
         if old_context and old_surface:

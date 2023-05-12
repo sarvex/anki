@@ -85,13 +85,14 @@ class TTSPlayer:
 
             rank -= 1
 
-        # if no preferred voices match, we fall back on language
-        # with a rank of -100
-        for avail in avail_voices:
-            if avail.lang == tag.lang:
-                return TTSVoiceMatch(voice=avail, rank=-100)
-
-        return None
+        return next(
+            (
+                TTSVoiceMatch(voice=avail, rank=-100)
+                for avail in avail_voices
+                if avail.lang == tag.lang
+            ),
+            None,
+        )
 
     def temp_file_for_tag_and_voice(self, tag: AVTag, voice: TTSVoice) -> str:
         """Return a hashed filename, to allow for caching generated files.
@@ -108,11 +109,7 @@ class TTSProcessPlayer(SimpleProcessPlayer, TTSPlayer):
         if not isinstance(tag, TTSTag):
             return None
 
-        match = self.voice_for_tag(tag)
-        if match:
-            return match.rank
-        else:
-            return None
+        return match.rank if (match := self.voice_for_tag(tag)) else None
 
 
 # tts-voices filter
@@ -124,10 +121,8 @@ def all_tts_voices() -> list[TTSVoice]:
 
     all_voices: list[TTSVoice] = []
     for p in av_player.players:
-        getter = getattr(p, "voices", None)
-        if not getter:
-            continue
-        all_voices.extend(getter())
+        if getter := getattr(p, "voices", None):
+            all_voices.extend(getter())
     return all_voices
 
 
@@ -140,10 +135,12 @@ def on_tts_voices(
     voices.sort(key=attrgetter("name"))
     voices.sort(key=attrgetter("lang"))
 
-    buf = "<div style='font-size: 14px; text-align: left;'>TTS voices available:<br>"
-    buf += "<br>".join(
-        f"{{{{tts {v.lang} voices={v.name}}}}}"  # pylint: disable=no-member
-        for v in voices
+    buf = (
+        "<div style='font-size: 14px; text-align: left;'>TTS voices available:<br>"
+        + "<br>".join(
+            f"{{{{tts {v.lang} voices={v.name}}}}}"  # pylint: disable=no-member
+            for v in voices
+        )
     )
     return f"{buf}</div>"
 
@@ -193,8 +190,7 @@ class MacTTSPlayer(TTSProcessPlayer):
 
         voices = []
         for line in cmd.stdout.splitlines():
-            voice = self._parse_voice_line(line)
-            if voice:
+            if voice := self._parse_voice_line(line):
                 voices.append(voice)
         return voices
 
@@ -617,7 +613,6 @@ if is_win:
             inputStream = stream.get_input_stream_at(0)
             dataReader = streams.DataReader(inputStream)
             dataReader.load_async(stream.size)
-            f = open(self.tmppath, "wb")
-            for x in range(stream.size):
-                f.write(bytes([dataReader.read_byte()]))
-            f.close()
+            with open(self.tmppath, "wb") as f:
+                for _ in range(stream.size):
+                    f.write(bytes([dataReader.read_byte()]))

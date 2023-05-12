@@ -113,9 +113,7 @@ class TagManager(DeprecatedNamesMixin):
 
     def join(self, tags: list[str]) -> str:
         "Join tags into a single string, with leading and trailing spaces."
-        if not tags:
-            return ""
-        return f" {' '.join(tags)} "
+        return "" if not tags else f" {' '.join(tags)} "
 
     def rem_from_str(self, deltags: str, tags: str) -> str:
         "Delete tags if they exist."
@@ -176,8 +174,7 @@ class TagManager(DeprecatedNamesMixin):
             res = self.col.db.list(query, did)
             return list(set(self.split(" ".join(res))))
         dids = [did]
-        for name, id in self.col.decks.children(did):
-            dids.append(id)
+        dids.extend(id for name, id in self.col.decks.children(did))
         query = f"{basequery} AND c.did IN {ids2str(dids)}"
         res = self.col.db.list(query)
         return list(set(self.split(" ".join(res))))

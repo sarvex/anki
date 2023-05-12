@@ -27,9 +27,10 @@ class ChangeTracker:
     def mark_schema(self) -> bool:
         "If false, processing should be aborted."
         if self._changed != Change.SCHEMA_CHANGE:
-            if not self.mw.confirm_schema_modification():
+            if self.mw.confirm_schema_modification():
+                self._changed = Change.SCHEMA_CHANGE
+            else:
                 return False
-            self._changed = Change.SCHEMA_CHANGE
         return True
 
     def changed(self) -> bool:

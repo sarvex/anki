@@ -113,8 +113,7 @@ class Anki2Importer(Importer):
             total += 1
             # turn the db result into a mutable list
             note = list(note)
-            shouldAdd = self._uniquifyNote(note)
-            if shouldAdd:
+            if shouldAdd := self._uniquifyNote(note):
                 # ensure id is unique
                 while note[0] in existing:
                     note[0] += 999
@@ -127,25 +126,23 @@ class Anki2Importer(Importer):
                 dirty.append(note[0])
                 # note we have the added the guid
                 self._notes[note[GUID]] = (note[0], note[3], note[MID])
-            else:
-                # a duplicate or changed schema - safe to update?
-                if self.allowUpdate:
-                    oldNid, oldMod, oldMid = self._notes[note[GUID]]
-                    # will update if incoming note more recent
-                    if oldMod < note[MOD]:
-                        # safe if note types identical
-                        if oldMid == note[MID]:
-                            # incoming note should use existing id
-                            note[0] = oldNid
-                            note[4] = usn
-                            note[6] = self._mungeMedia(note[MID], note[6])
-                            update.append(note)
-                            dirty.append(note[0])
-                        else:
-                            dupesIgnored.append(note)
-                            self._ignoredGuids[note[GUID]] = True
+            elif self.allowUpdate:
+                oldNid, oldMod, oldMid = self._notes[note[GUID]]
+                # will update if incoming note more recent
+                if oldMod < note[MOD]:
+                    # safe if note types identical
+                    if oldMid == note[MID]:
+                        # incoming note should use existing id
+                        note[0] = oldNid
+                        note[4] = usn
+                        note[6] = self._mungeMedia(note[MID], note[6])
+                        update.append(note)
+                        dirty.append(note[0])
                     else:
-                        dupesIdentical.append(note)
+                        dupesIgnored.append(note)
+                        self._ignoredGuids[note[GUID]] = True
+                else:
+                    dupesIdentical.append(note)
 
         self.log.append(self.dst.tr.importing_notes_found_in_file(val=total))
 
@@ -368,10 +365,7 @@ class Anki2Importer(Importer):
                 card[8] = card[14]
                 card[14] = 0
                 # queue
-                if card[6] == CARD_TYPE_LRN:  # type
-                    card[7] = QUEUE_TYPE_NEW
-                else:
-                    card[7] = card[6]
+                card[7] = QUEUE_TYPE_NEW if card[6] == CARD_TYPE_LRN else card[6]
                 # type
                 if card[6] == CARD_TYPE_LRN:
                     card[6] = CARD_TYPE_NEW

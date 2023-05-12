@@ -156,9 +156,8 @@ def _save_latex_image(
     # write into a temp file
     log = open(namedtmp("latex_log.txt"), "w", encoding="utf8")
     texpath = namedtmp("tmp.tex")
-    texfile = open(texpath, "w", encoding="utf8")
-    texfile.write(latex)
-    texfile.close()
+    with open(texpath, "w", encoding="utf8") as texfile:
+        texfile.write(latex)
     oldcwd = os.getcwd()
     png_or_svg = namedtmp(f"tmp.{ext}")
     try:

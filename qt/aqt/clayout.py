@@ -140,12 +140,7 @@ class CardLayout(QDialog):
         self.ignore_change_signals = False
 
     def _summarizedName(self, idx: int, tmpl: dict) -> str:
-        return "{}: {}: {} -> {}".format(
-            idx + 1,
-            tmpl["name"],
-            self._fieldsOnTemplate(tmpl["qfmt"]),
-            self._fieldsOnTemplate(tmpl["afmt"]),
-        )
+        return f'{idx + 1}: {tmpl["name"]}: {self._fieldsOnTemplate(tmpl["qfmt"])} -> {self._fieldsOnTemplate(tmpl["afmt"])}'
 
     def _fieldsOnTemplate(self, fmt: str) -> str:
         matches = re.findall("{{[^#/}]+?}}", fmt)
@@ -189,14 +184,12 @@ class CardLayout(QDialog):
             self,
             activated=self.tform.style_button.click,
         )
-        QShortcut(  # type: ignore
+        QShortcut(
             QKeySequence("F3"),
             self,
-            activated=lambda: (
-                self.update_current_ordinal_and_redraw(self.ord - 1)
-                if self.ord - 1 > -1
-                else None
-            ),
+            activated=lambda: self.update_current_ordinal_and_redraw(self.ord - 1)
+            if self.ord > 0
+            else None,
         )
         QShortcut(  # type: ignore
             QKeySequence("F4"),
@@ -417,11 +410,7 @@ class CardLayout(QDialog):
             play_clicked_audio(cmd, self.rendered_card)
 
     def note_has_empty_field(self) -> bool:
-        for field in self.note.fields:
-            if not field.strip():
-                # ignores HTML, but this should suffice
-                return True
-        return False
+        return any(not field.strip() for field in self.note.fields)
 
     # Buttons
     ##########################################################################
@@ -458,9 +447,7 @@ class CardLayout(QDialog):
     ##########################################################################
 
     def current_template(self) -> dict:
-        if self._isCloze():
-            return self.templates[0]
-        return self.templates[self.ord]
+        return self.templates[0] if self._isCloze() else self.templates[self.ord]
 
     def fill_fields_from_template(self) -> None:
         t = self.current_template()
@@ -704,7 +691,7 @@ class CardLayout(QDialog):
             return
         self.change_tracker.mark_basic()
         dst["afmt"] = "{{FrontSide}}\n\n<hr id=answer>\n\n%s" % src["qfmt"]
-        dst["qfmt"] = m.group(2).strip()
+        dst["qfmt"] = m[2].strip()
 
     def onMore(self) -> None:
         m = QMenu(self)
@@ -725,10 +712,7 @@ class CardLayout(QDialog):
             m.addSeparator()
 
             t = self.current_template()
-            if t["did"]:
-                s = tr.card_templates_on()
-            else:
-                s = tr.card_templates_off()
+            s = tr.card_templates_on() if t["did"] else tr.card_templates_off()
             a = m.addAction(tr.card_templates_deck_override() + s)
             qconnect(a.triggered, self.onTargetDeck)
 
@@ -792,10 +776,7 @@ class CardLayout(QDialog):
         d.setLayout(l)
         d.exec()
         self.change_tracker.mark_basic()
-        if not te.text().strip():
-            t["did"] = None
-        else:
-            t["did"] = self.col.decks.id(te.text())
+        t["did"] = None if not te.text().strip() else self.col.decks.id(te.text())
 
     def onAddField(self) -> None:
         diag = QDialog(self)
@@ -846,9 +827,10 @@ class CardLayout(QDialog):
         ).run_in_background()
 
     def reject(self) -> None:
-        if self.change_tracker.changed():
-            if not askUser(tr.card_templates_discard_changes()):
-                return
+        if self.change_tracker.changed() and not askUser(
+            tr.card_templates_discard_changes()
+        ):
+            return
         self.cleanup()
         return QDialog.reject(self)
 

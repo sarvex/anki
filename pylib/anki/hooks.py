@@ -27,8 +27,7 @@ _hooks: dict[str, list[Callable[..., Any]]] = {}
 
 def runHook(hook: str, *args: Any) -> None:
     "Run all functions on hook."
-    hookFuncs = _hooks.get(hook, None)
-    if hookFuncs:
+    if hookFuncs := _hooks.get(hook, None):
         for func in hookFuncs:
             try:
                 func(*args)
@@ -38,8 +37,7 @@ def runHook(hook: str, *args: Any) -> None:
 
 
 def runFilter(hook: str, arg: Any, *args: Any) -> Any:
-    hookFuncs = _hooks.get(hook, None)
-    if hookFuncs:
+    if hookFuncs := _hooks.get(hook, None):
         for func in hookFuncs:
             try:
                 arg = func(arg, *args)

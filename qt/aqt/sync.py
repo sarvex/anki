@@ -49,7 +49,7 @@ def get_sync_status(
             out = fut.result()
         except Exception as e:
             # swallow errors
-            print("sync status check failed:", str(e))
+            print("sync status check failed:", e)
             return
         if out.new_endpoint:
             mw.pm.set_current_sync_url(out.new_endpoint)
@@ -330,9 +330,7 @@ def get_id_and_pass_from_user(
     diag.show()
 
     accepted = diag.exec()
-    if not accepted:
-        return ("", "")
-    return (user.text().strip(), passwd.text())
+    return ("", "") if not accepted else (user.text().strip(), passwd.text())
 
 
 # export platform version to syncing code

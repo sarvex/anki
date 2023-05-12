@@ -142,10 +142,7 @@ class SchedulerBase(DeprecatedNamesMixin):
     def bury_cards(
         self, ids: Sequence[CardId], manual: bool = True
     ) -> OpChangesWithCount:
-        if manual:
-            mode = BuryOrSuspend.BURY_USER
-        else:
-            mode = BuryOrSuspend.BURY_SCHED
+        mode = BuryOrSuspend.BURY_USER if manual else BuryOrSuspend.BURY_SCHED
         return self.col._backend.bury_or_suspend_cards(
             card_ids=ids, note_ids=[], mode=mode
         )

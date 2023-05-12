@@ -41,9 +41,8 @@ class SidebarModel(QAbstractItemModel):
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         if not parent.isValid():
             return len(self.root.children)
-        else:
-            item: SidebarItem = parent.internalPointer()
-            return len(item.children)
+        item: SidebarItem = parent.internalPointer()
+        return len(item.children)
 
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 1
@@ -55,11 +54,7 @@ class SidebarModel(QAbstractItemModel):
             return QModelIndex()
 
         parentItem: SidebarItem
-        if not parent.isValid():
-            parentItem = self.root
-        else:
-            parentItem = parent.internalPointer()
-
+        parentItem = self.root if not parent.isValid() else parent.internalPointer()
         item = parentItem.children[row]
         return self.createIndex(row, column, item)
 

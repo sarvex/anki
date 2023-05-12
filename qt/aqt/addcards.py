@@ -123,10 +123,7 @@ class AddCards(QMainWindow):
         bb.addButton(self.helpButton, QDialogButtonBox.ButtonRole.HelpRole)
         # history
         b = bb.addButton(f"{tr.adding_history()} {downArrow()}", ar)
-        if is_mac:
-            sc = "Ctrl+Shift+H"
-        else:
-            sc = "Ctrl+H"
+        sc = "Ctrl+Shift+H" if is_mac else "Ctrl+H"
         b.setShortcut(QKeySequence(sc))
         b.setToolTip(tr.adding_shortcut(val=shortcut(sc)))
         qconnect(b.clicked, self.onHistory)
@@ -175,7 +172,7 @@ class AddCards(QMainWindow):
                     break
                 # copy non-empty old fields
                 if (
-                    not old_field_value in copied_field_names
+                    old_field_value not in copied_field_names
                     and old_note.fields[old_idx]
                 ):
                     new_note.fields[new_idx] = old_note.fields[old_idx]
@@ -300,10 +297,7 @@ class AddCards(QMainWindow):
 
         optional_problems: list[str] = []
         gui_hooks.add_cards_might_add_note(optional_problems, note)
-        if not all(askUser(op) for op in optional_problems):
-            return False
-
-        return True
+        return all((askUser(op) for op in optional_problems))
 
     def keyPressEvent(self, evt: QKeyEvent) -> None:
         if evt.key() == Qt.Key.Key_Escape:

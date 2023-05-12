@@ -185,10 +185,9 @@ class MediaManager(DeprecatedNamesMixin):
         If an error is encountered, returns (note_id, error_message)
         """
         last_progress = time.time()
-        checked = 0
-        for (nid, mid, flds) in self.col.db.execute(
+        for checked, (nid, mid, flds) in enumerate(self.col.db.execute(
             "select id, mid, flds from notes where flds like '%[%'"
-        ):
+        ), start=1):
 
             model = self.col.models.get(mid)
             _html, errors = render_latex_returning_errors(
@@ -197,7 +196,6 @@ class MediaManager(DeprecatedNamesMixin):
             if errors:
                 return (nid, "\n".join(errors))
 
-            checked += 1
             elap = time.time() - last_progress
             if elap >= 0.3 and progress_cb is not None:
                 last_progress = int_time()

@@ -103,10 +103,7 @@ class SoundOrVideoPlayer(Player):  # pylint: disable=abstract-method
     default_rank = 0
 
     def rank_for_tag(self, tag: AVTag) -> int | None:
-        if isinstance(tag, SoundOrVideoTag):
-            return self.default_rank
-        else:
-            return None
+        return self.default_rank if isinstance(tag, SoundOrVideoTag) else None
 
 
 class SoundPlayer(Player):  # pylint: disable=abstract-method
@@ -191,9 +188,7 @@ class AVPlayer:
             self.current_player.stop()
 
     def _pop_next(self) -> AVTag | None:
-        if not self._enqueued:
-            return None
-        return self._enqueued.pop(0)
+        return None if not self._enqueued else self._enqueued.pop(0)
 
     def _on_play_finished(self) -> None:
         gui_hooks.av_player_did_end_playing(self.current_player)
@@ -209,8 +204,7 @@ class AVPlayer:
             self._play(next)
 
     def _play(self, tag: AVTag) -> None:
-        best_player = self._best_player_for_tag(tag)
-        if best_player:
+        if best_player := self._best_player_for_tag(tag):
             self.current_player = best_player
             gui_hooks.av_player_will_play(tag)
             self.current_player.play(tag, self._on_play_finished)
@@ -226,10 +220,7 @@ class AVPlayer:
 
         ranked.sort(key=itemgetter(0))
 
-        if ranked:
-            return ranked[-1][1]
-        else:
-            return None
+        return ranked[-1][1] if ranked else None
 
 
 av_player = AVPlayer()
@@ -246,7 +237,7 @@ def _packagedCmd(cmd: list[str]) -> tuple[Any, dict[str, str]]:
         del env["LD_LIBRARY_PATH"]
 
     if is_win:
-        packaged_path = Path(sys.prefix) / "audio" / (cmd[0] + ".exe")
+        packaged_path = Path(sys.prefix) / "audio" / f"{cmd[0]}.exe"
     elif is_mac:
         packaged_path = Path(sys.prefix) / ".." / "Resources" / cmd[0]
     else:
@@ -812,7 +803,7 @@ def av_refs_to_play_icons(text: str) -> str:
 
     def repl(match: re.Match) -> str:
         return f"""
-<a class="replay-button soundLink" href=# onclick="pycmd('{match.group(1)}'); return false;">
+<a class="replay-button soundLink" href=# onclick="pycmd('{match[1]}'); return false;">
     <svg class="playImage" viewBox="0 0 64 64" version="1.1">
         <circle cx="32" cy="32" r="29" />
         <path d="M56.502,32.301l-37.502,20.101l0.329,-40.804l37.173,20.703Z" />
@@ -826,10 +817,7 @@ def play_clicked_audio(pycmd: str, card: Card) -> None:
     """eg. if pycmd is 'play:q:0', play the first audio on the question side."""
     play, context, str_idx = pycmd.split(":")
     idx = int(str_idx)
-    if context == "q":
-        tags = card.question_av_tags()
-    else:
-        tags = card.answer_av_tags()
+    tags = card.question_av_tags() if context == "q" else card.answer_av_tags()
     av_player.play_tags([tags[idx]])
 
 

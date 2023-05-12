@@ -152,10 +152,6 @@ class ImportDialog(QDialog):
 
             self.showMapping(hook=updateDelim)
 
-        else:
-            # If the operation has been canceled, do not do anything
-            pass
-
     def updateDelimiterButtonText(self) -> None:
         if not self.importer.needDelimiter:
             return
@@ -370,12 +366,10 @@ def importFile(mw: AnkiQt, file: str) -> None:
             importer.close()
     else:
         # if it's an apkg/zip, first test it's a valid file
-        if isinstance(importer, AnkiPackageImporter):
-            # we need to ask whether to import/replace; if it's
-            # a colpkg file then the rest of the import process
-            # will happen in setupApkgImport()
-            if not setupApkgImport(mw, importer):
-                return
+        if isinstance(importer, AnkiPackageImporter) and not setupApkgImport(
+            mw, importer
+        ):
+            return
 
         # importing non-colpkg files
         mw.progress.start(immediate=True)

@@ -26,10 +26,7 @@ class ModelChooser(QHBoxLayout):
         self.mw = mw
         self.deck = mw.col
         self.label = label
-        if on_activated:
-            self.on_activated = on_activated
-        else:
-            self.on_activated = self.onModelChange
+        self.on_activated = on_activated if on_activated else self.onModelChange
         self.setContentsMargins(0, 0, 0, 0)
         self.setSpacing(8)
         self.setupModels()

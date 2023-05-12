@@ -196,10 +196,7 @@ class Collection(DeprecatedNamesMixin):
         if ver == 1:
             self.sched = V1Scheduler(self)
         elif ver == 2:
-            if self.v3_scheduler():
-                self.sched = V3Scheduler(self)
-            else:
-                self.sched = V2Scheduler(self)
+            self.sched = V3Scheduler(self) if self.v3_scheduler() else V2Scheduler(self)
 
     def upgrade_to_v2_scheduler(self) -> None:
         self._backend.upgrade_scheduler()
@@ -323,9 +320,12 @@ class Collection(DeprecatedNamesMixin):
 
     def mod_schema(self, check: bool) -> None:
         "Mark schema modified. GUI catches this and will ask user if required."
-        if not self.schema_changed():
-            if check and not hooks.schema_will_change(proceed=True):
-                raise AbortSchemaModification()
+        if (
+            not self.schema_changed()
+            and check
+            and not hooks.schema_will_change(proceed=True)
+        ):
+            raise AbortSchemaModification()
         self.set_schema_modified()
 
     def schema_changed(self) -> bool:
@@ -333,10 +333,7 @@ class Collection(DeprecatedNamesMixin):
         return self.db.scalar("select scm > ls from col")
 
     def usn(self) -> int:
-        if self.server:
-            return self.db.scalar("select usn from col")
-        else:
-            return -1
+        return self.db.scalar("select usn from col") if self.server else -1
 
     def legacy_checkpoint_pending(self) -> bool:
         return (
@@ -661,13 +658,15 @@ class Collection(DeprecatedNamesMixin):
             order = self.get_browser_column(self.get_config(sort_key))
             reverse_key = BrowserConfig.sort_backwards_key(finding_notes)
             reverse = self.get_config(reverse_key)
-        if isinstance(order, BrowserColumns.Column):
-            if order.sorting != BrowserColumns.SORTING_NONE:
-                return search_pb2.SortOrder(
-                    builtin=search_pb2.SortOrder.Builtin(
-                        column=order.key, reverse=reverse
-                    )
+        if (
+            isinstance(order, BrowserColumns.Column)
+            and order.sorting != BrowserColumns.SORTING_NONE
+        ):
+            return search_pb2.SortOrder(
+                builtin=search_pb2.SortOrder.Builtin(
+                    column=order.key, reverse=reverse
                 )
+            )
 
         # eg, user is ordering on an add-on field with the add-on not installed
         print(f"{order} is not a valid sort order.")
@@ -789,13 +788,11 @@ class Collection(DeprecatedNamesMixin):
         Used by the Browse screen to avoid adding extra brackets when joining.
         If you're building a search query yourself, you probably don't need this.
         """
-        search_string = self._backend.join_search_nodes(
+        return self._backend.join_search_nodes(
             joiner=self._pb_search_separator(operator),
             existing_node=existing_node,
             additional_node=additional_node,
         )
-
-        return search_string
 
     def replace_in_search_node(
         self, existing_node: SearchNode, replacement_node: SearchNode
@@ -822,10 +819,14 @@ class Collection(DeprecatedNamesMixin):
         return self._backend.all_browser_columns()
 
     def get_browser_column(self, key: str) -> BrowserColumns.Column | None:
-        for column in self._backend.all_browser_columns():
-            if column.key == key:
-                return column
-        return None
+        return next(
+            (
+                column
+                for column in self._backend.all_browser_columns()
+                if column.key == key
+            ),
+            None,
+        )
 
     def browser_row_for_id(
         self, id_: int
@@ -1039,11 +1040,10 @@ class Collection(DeprecatedNamesMixin):
             assert False
 
     def op_made_changes(self, changes: OpChanges) -> bool:
-        for field in changes.DESCRIPTOR.fields:
-            if field.name != "kind":
-                if getattr(changes, field.name, False):
-                    return True
-        return False
+        return any(
+            field.name != "kind" and getattr(changes, field.name, False)
+            for field in changes.DESCRIPTOR.fields
+        )
 
     def _check_backend_undo_status(self) -> UndoStatus | None:
         """Return undo status if undo available on backend.
@@ -1080,10 +1080,8 @@ class Collection(DeprecatedNamesMixin):
         self._last_checkpoint_at = time.time()
         if name:
             self._undo = LegacyCheckpoint(name=name)
-        else:
-            # saving disables old checkpoint, but not review undo
-            if not isinstance(self._undo, _ReviewsUndo):
-                self.clear_python_undo()
+        elif not isinstance(self._undo, _ReviewsUndo):
+            self.clear_python_undo()
 
     def _undo_review(self) -> LegacyReviewUndo:
         "Undo a v1/v2 review."

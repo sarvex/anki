@@ -195,17 +195,10 @@ class DataModel(QAbstractTableModel):
     # Get row numbers from items
 
     def get_item_row(self, item: ItemId) -> int | None:
-        for row, i in enumerate(self._items):
-            if i == item:
-                return row
-        return None
+        return next((row for row, i in enumerate(self._items) if i == item), None)
 
     def get_item_rows(self, items: Sequence[ItemId]) -> list[int]:
-        rows = []
-        for row, i in enumerate(self._items):
-            if i in items:
-                rows.append(row)
-        return rows
+        return [row for row, i in enumerate(self._items) if i in items]
 
     def get_card_row(self, card_id: CardId) -> int | None:
         return self.get_item_row(self._state.get_item_from_card_id(card_id))
@@ -303,14 +296,10 @@ class DataModel(QAbstractTableModel):
     ######################################################################
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
-        if parent and parent.isValid():
-            return 0
-        return self.len_rows()
+        return 0 if parent and parent.isValid() else self.len_rows()
 
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
-        if parent and parent.isValid():
-            return 0
-        return self.len_columns()
+        return 0 if parent and parent.isValid() else self.len_columns()
 
     _QFont = without_qt5_compat_wrapper(QFont)
 

@@ -112,10 +112,7 @@ class FieldDialog(QDialog):
     def onDrop(self, ev: QDropEvent) -> None:
         fieldList = self.form.fieldList
         indicatorPos = fieldList.dropIndicatorPosition()
-        if qtmajor == 5:
-            pos = ev.pos()  # type: ignore
-        else:
-            pos = ev.position().toPoint()
+        pos = ev.pos() if qtmajor == 5 else ev.position().toPoint()
         dropPos = fieldList.indexAt(pos).row()
         idx = self.currentIdx
         if dropPos == idx:
@@ -283,9 +280,8 @@ class FieldDialog(QDialog):
             self.webview.cleanup()
             self.webview = None
 
-        if self.change_tracker.changed():
-            if not askUser("Discard changes?"):
-                return
+        if self.change_tracker.changed() and not askUser("Discard changes?"):
+            return
 
         QDialog.reject(self)
 

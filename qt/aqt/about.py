@@ -43,16 +43,10 @@ def show(mw: aqt.AnkiQt) -> QDialog:
             )
         else:
             installed = "0"
-        if addon.provided_name:
-            name = addon.provided_name
-        else:
-            name = "''"
+        name = addon.provided_name if addon.provided_name else "''"
         user = addmgr.getConfig(addon.dir_name)
         default = addmgr.addonConfigDefaults(addon.dir_name)
-        if user == default:
-            modified = "''"
-        else:
-            modified = "mod"
+        modified = "''" if user == default else "mod"
         return f"{name} ['{addon.dir_name}', {installed}, '{addon.human_version}', {modified}]"
 
     def onCopy() -> None:
@@ -106,11 +100,7 @@ def show(mw: aqt.AnkiQt) -> QDialog:
     abouttext += f"<p>{tr.about_anki_is_a_friendly_intelligent_spaced()}"
     abouttext += f"<p>{tr.about_anki_is_licensed_under_the_agpl3()}"
     abouttext += f"<p>{tr.about_version(val=version_with_build())}<br>"
-    abouttext += ("Python %s Qt %s PyQt %s<br>") % (
-        platform.python_version(),
-        qVersion(),
-        PYQT_VERSION_STR,
-    )
+    abouttext += f"Python {platform.python_version()} Qt {qVersion()} PyQt {PYQT_VERSION_STR}<br>"
     abouttext += (
         without_unicode_isolation(tr.about_visit_website(val=aqt.appWebsite))
         + "</span>"

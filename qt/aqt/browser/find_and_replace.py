@@ -78,11 +78,11 @@ class FindAndReplaceDialog(QDialog):
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
         self._find_history = restore_combo_history(
-            self.form.find, self.COMBO_NAME + "Find"
+            self.form.find, f"{self.COMBO_NAME}Find"
         )
         self.form.find.completer().setCaseSensitivity(Qt.CaseSensitivity.CaseSensitive)
         self._replace_history = restore_combo_history(
-            self.form.replace, self.COMBO_NAME + "Replace"
+            self.form.replace, f"{self.COMBO_NAME}Replace"
         )
         self.form.replace.completer().setCaseSensitivity(
             Qt.CaseSensitivity.CaseSensitive
@@ -95,15 +95,15 @@ class FindAndReplaceDialog(QDialog):
         elif self._field:
             self.form.selected_notes.setChecked(False)
 
-        restore_is_checked(self.form.re, self.COMBO_NAME + "Regex")
-        restore_is_checked(self.form.ignoreCase, self.COMBO_NAME + "ignoreCase")
+        restore_is_checked(self.form.re, f"{self.COMBO_NAME}Regex")
+        restore_is_checked(self.form.ignoreCase, f"{self.COMBO_NAME}ignoreCase")
 
         self.form.field.addItems(self.field_names)
         if self._field:
             self.form.field.setCurrentIndex(self.field_names.index(self._field))
         else:
             restore_combo_index_for_session(
-                self.form.field, self.field_names, self.COMBO_NAME + "Field"
+                self.form.field, self.field_names, f"{self.COMBO_NAME}Field"
             )
 
         qconnect(self.form.buttonBox.helpRequested, self.show_help)
@@ -114,18 +114,18 @@ class FindAndReplaceDialog(QDialog):
 
     def accept(self) -> None:
         saveGeom(self, "findreplace")
-        save_combo_index_for_session(self.form.field, self.COMBO_NAME + "Field")
+        save_combo_index_for_session(self.form.field, f"{self.COMBO_NAME}Field")
 
         search = save_combo_history(
-            self.form.find, self._find_history, self.COMBO_NAME + "Find"
+            self.form.find, self._find_history, f"{self.COMBO_NAME}Find"
         )
         replace = save_combo_history(
-            self.form.replace, self._replace_history, self.COMBO_NAME + "Replace"
+            self.form.replace, self._replace_history, f"{self.COMBO_NAME}Replace"
         )
         regex = self.form.re.isChecked()
         match_case = not self.form.ignoreCase.isChecked()
-        save_is_checked(self.form.re, self.COMBO_NAME + "Regex")
-        save_is_checked(self.form.ignoreCase, self.COMBO_NAME + "ignoreCase")
+        save_is_checked(self.form.re, f"{self.COMBO_NAME}Regex")
+        save_is_checked(self.form.ignoreCase, f"{self.COMBO_NAME}ignoreCase")
 
         if not self.form.selected_notes.isChecked():
             # an empty list means *all* notes

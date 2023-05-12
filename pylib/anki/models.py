@@ -171,11 +171,7 @@ class ModelManager(DeprecatedNamesMixin):
 
     def by_name(self, name: str) -> NotetypeDict | None:
         "Get model with NAME."
-        id = self.id_for_name(name)
-        if id:
-            return self.get(id)
-        else:
-            return None
+        return self.get(id) if (id := self.id_for_name(name)) else None
 
     def new(self, name: str) -> NotetypeDict:
         "Create a new model, and return it."
@@ -306,7 +302,7 @@ class ModelManager(DeprecatedNamesMixin):
     def rename_field(
         self, notetype: NotetypeDict, field: FieldDict, new_name: str
     ) -> None:
-        if not field in notetype["flds"]:
+        if field not in notetype["flds"]:
             raise Exception("invalid field")
         field["name"] = new_name
 
@@ -336,7 +332,7 @@ class ModelManager(DeprecatedNamesMixin):
 
     def remove_template(self, notetype: NotetypeDict, template: TemplateDict) -> None:
         "Modifies schema."
-        if not len(notetype["tmpls"]) > 1:
+        if len(notetype["tmpls"]) <= 1:
             raise Exception("must have 1 template")
         notetype["tmpls"].remove(template)
 
@@ -446,9 +442,7 @@ and notes.mid = ? and cards.ord = ?""",
 
     def scmhash(self, notetype: NotetypeDict) -> str:
         "Return a hash of the schema, to see if models are compatible."
-        buf = ""
-        for field in notetype["flds"]:
-            buf += field["name"]
+        buf = "".join(field["name"] for field in notetype["flds"])
         for template in notetype["tmpls"]:
             buf += template["name"]
         return checksum(buf)

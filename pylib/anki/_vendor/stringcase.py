@@ -20,12 +20,12 @@ def camelcase(string):
 
     """
 
-    string = re.sub(r"\w[\s\W]+\w", "", str(string))
-    if not string:
+    if string := re.sub(r"\w[\s\W]+\w", "", str(string)):
+        return lowercase(string[0]) + re.sub(
+            r"[\-_\.\s]([a-z])", lambda matched: uppercase(matched.group(1)), string[1:]
+        )
+    else:
         return string
-    return lowercase(string[0]) + re.sub(
-        r"[\-_\.\s]([a-z])", lambda matched: uppercase(matched.group(1)), string[1:]
-    )
 
 
 def capitalcase(string):
@@ -41,9 +41,7 @@ def capitalcase(string):
     """
 
     string = str(string)
-    if not string:
-        return string
-    return uppercase(string[0]) + string[1:]
+    return string if not string else uppercase(string[0]) + string[1:]
 
 
 def constcase(string):
@@ -101,9 +99,7 @@ def pathcase(string):
 
     """
     string = snakecase(string)
-    if not string:
-        return string
-    return re.sub(r"_", "/", string)
+    return string if not string else re.sub(r"_", "/", string)
 
 
 def backslashcase(string):
@@ -117,9 +113,7 @@ def backslashcase(string):
         string: Spinal cased string.
 
     """
-    str1 = re.sub(r"_", r"\\", snakecase(string))
-
-    return str1
+    return re.sub(r"_", r"\\", snakecase(string))
     # return re.sub(r"\\n", "", str1))  # TODO: make regex for \t ...
 
 
@@ -135,16 +129,16 @@ def sentencecase(string):
 
     """
     joiner = " "
-    string = re.sub(r"[\-_\.\s]", joiner, str(string))
-    if not string:
-        return string
-    return capitalcase(
-        trimcase(
-            re.sub(
-                r"[A-Z]", lambda matched: joiner + lowercase(matched.group(0)), string
+    if string := re.sub(r"[\-_\.\s]", joiner, str(string)):
+        return capitalcase(
+            trimcase(
+                re.sub(
+                    r"[A-Z]", lambda matched: joiner + lowercase(matched.group(0)), string
+                )
             )
         )
-    )
+    else:
+        return string
 
 
 def snakecase(string):
@@ -159,12 +153,14 @@ def snakecase(string):
 
     """
 
-    string = re.sub(r"[\-\.\s]", "_", str(string))
-    if not string:
+    if string := re.sub(r"[\-\.\s]", "_", str(string)):
+        return lowercase(string[0]) + re.sub(
+            r"[A-Z]",
+            lambda matched: f"_{lowercase(matched.group(0))}",
+            string[1:],
+        )
+    else:
         return string
-    return lowercase(string[0]) + re.sub(
-        r"[A-Z]", lambda matched: "_" + lowercase(matched.group(0)), string[1:]
-    )
 
 
 def spinalcase(string):

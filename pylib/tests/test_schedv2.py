@@ -456,7 +456,7 @@ def review_limits_setup() -> tuple[anki.collection.Collection, Dict]:
     col.models.save(m, updateReqs=False)
 
     # add some cards
-    for i in range(20):
+    for _ in range(20):
         note = col.newNote()
         note["Front"] = "one"
         note["Back"] = "two"
@@ -526,35 +526,6 @@ def test_button_spacing():
 def test_overdue_lapse():
     # disabled in commit 3069729776990980f34c25be66410e947e9d51a2
     return
-    col = getEmptyCol()  # pylint: disable=unreachable
-    # add a note
-    note = col.newNote()
-    note["Front"] = "one"
-    col.addNote(note)
-    # simulate a review that was lapsed and is now due for its normal review
-    c = note.cards()[0]
-    c.type = CARD_TYPE_REV
-    c.queue = QUEUE_TYPE_LRN
-    c.due = -1
-    c.odue = -1
-    c.factor = STARTING_FACTOR
-    c.left = 2002
-    c.ivl = 0
-    c.flush()
-    # checkpoint
-    col.save()
-    col.sched.reset()
-    assert col.sched.counts() == (0, 2, 0)
-    c = col.sched.getCard()
-    col.sched.answerCard(c, 3)
-    # it should be due tomorrow
-    assert c.due == col.sched.today + 1
-    # revert to before
-    col.rollback()
-    # with the default settings, the overdue card should be removed from the
-    # learning queue
-    col.sched.reset()
-    assert col.sched.counts() == (0, 0, 1)
 
 
 def test_nextIvl():
@@ -718,10 +689,7 @@ def test_suspend():
 
 def test_filt_reviewing_early_normal():
     def to_int(val: float) -> int:
-        if is_2021():
-            return round(val)
-        else:
-            return int(val)
+        return round(val) if is_2021() else int(val)
 
     col = getEmptyCol()
     note = col.newNote()
@@ -843,11 +811,7 @@ def test_preview():
     # grab the first card
     c = col.sched.getCard()
 
-    if is_2021():
-        passing_grade = 4
-    else:
-        passing_grade = 2
-
+    passing_grade = 4 if is_2021() else 2
     assert col.sched.answerButtons(c) == passing_grade
     assert col.sched.nextIvl(c, 1) == 600
     assert col.sched.nextIvl(c, passing_grade) == 0
@@ -1170,7 +1134,7 @@ def test_reorder():
     assert note2.cards()[0].due == 2
     found = False
     # 50/50 chance of being reordered
-    for i in range(20):
+    for _ in range(20):
         col.sched.randomize_cards(1)
         if note.cards()[0].due != note.id:
             found = True

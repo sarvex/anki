@@ -104,14 +104,13 @@ class DeckManager(DeprecatedNamesMixin):
         "If deck exists, return existing id."
         if id := self.col.decks.id_for_name(name):
             return OpChangesWithId(id=id)
-        else:
-            deck = self.col.decks.new_deck()
-            deck.name = name
-            return self.add_deck(deck)
+        deck = self.col.decks.new_deck()
+        deck.name = name
+        return self.add_deck(deck)
 
     def add_deck_legacy(self, deck: DeckDict) -> OpChangesWithId:
         "Add a deck created with new_deck_legacy(). Must have id of 0."
-        if not deck["id"] == 0:
+        if deck["id"] != 0:
             raise Exception("id should be 0")
         return self.col._backend.add_deck_legacy(to_json_bytes(deck))
 
@@ -122,8 +121,7 @@ class DeckManager(DeprecatedNamesMixin):
         type: DeckConfigId = DeckConfigId(0),
     ) -> DeckId | None:
         "Add a deck with NAME. Reuse deck if already exists. Return id as int."
-        id = self.id_for_name(name)
-        if id:
+        if id := self.id_for_name(name):
             return id
         elif not create:
             return None
@@ -191,8 +189,7 @@ class DeckManager(DeprecatedNamesMixin):
         if node.deck_id == deck_id:
             return node
         for child in node.children:
-            match = cls.find_deck_in_tree(child, deck_id)
-            if match:
+            if match := cls.find_deck_in_tree(child, deck_id):
                 return match
         return None
 
@@ -224,27 +221,19 @@ class DeckManager(DeprecatedNamesMixin):
     def card_count(
         self, dids: DeckId | Iterable[DeckId], include_subdecks: bool
     ) -> Any:
-        if isinstance(dids, int):
-            dids = {dids}
-        else:
-            dids = set(dids)
+        dids = {dids} if isinstance(dids, int) else set(dids)
         if include_subdecks:
             dids.update([child[1] for did in dids for child in self.children(did)])
         str_ids = ids2str(dids)
-        count = self.col.db.scalar(
+        return self.col.db.scalar(
             f"select count() from cards where did in {str_ids} or odid in {str_ids}"
         )
-        return count
 
     def get(self, did: DeckId | str, default: bool = True) -> DeckDict | None:
         if not did:
-            if default:
-                return self.get_legacy(DEFAULT_DECK_ID)
-            else:
-                return None
+            return self.get_legacy(DEFAULT_DECK_ID) if default else None
         id = DeckId(int(did))
-        deck = self.get_legacy(id)
-        if deck:
+        if deck := self.get_legacy(id):
             return deck
         elif default:
             return self.get_legacy(DEFAULT_DECK_ID)
@@ -253,10 +242,7 @@ class DeckManager(DeprecatedNamesMixin):
 
     def by_name(self, name: str) -> DeckDict | None:
         """Get deck with NAME, ignoring case."""
-        id = self.id_for_name(name)
-        if id:
-            return self.get_legacy(id)
-        return None
+        return self.get_legacy(id) if (id := self.id_for_name(name)) else None
 
     def update(self, deck: DeckDict, preserve_usn: bool = True) -> None:
         "Add or update an existing deck. Used for syncing and merging."
@@ -269,10 +255,7 @@ class DeckManager(DeprecatedNamesMixin):
 
     def rename(self, deck: DeckDict | DeckId, new_name: str) -> OpChanges:
         "Rename deck prefix to NAME if not exists. Updates children."
-        if isinstance(deck, int):
-            deck_id = deck
-        else:
-            deck_id = deck["id"]
+        deck_id = deck if isinstance(deck, int) else deck["id"]
         return self.col._backend.rename_deck(deck_id=deck_id, new_name=new_name)
 
     # Drag/drop
@@ -361,11 +344,11 @@ class DeckManager(DeprecatedNamesMixin):
         self.save(deck)
 
     def decks_using_config(self, conf: DeckConfigDict) -> list[DeckId]:
-        dids = []
-        for deck in self.all():
-            if "conf" in deck and deck["conf"] == conf["id"]:
-                dids.append(deck["id"])
-        return dids
+        return [
+            deck["id"]
+            for deck in self.all()
+            if "conf" in deck and deck["conf"] == conf["id"]
+        ]
 
     def restore_to_default(self, conf: DeckConfigDict) -> None:
         old_order = conf["new"]["order"]
@@ -381,23 +364,18 @@ class DeckManager(DeprecatedNamesMixin):
     #############################################################
 
     def name(self, did: DeckId, default: bool = False) -> str:
-        deck = self.get(did, default=default)
-        if deck:
+        if deck := self.get(did, default=default):
             return deck["name"]
         return self.col.tr.decks_no_deck()
 
     def name_if_exists(self, did: DeckId) -> str | None:
-        deck = self.get(did, default=False)
-        if deck:
-            return deck["name"]
-        return None
+        return deck["name"] if (deck := self.get(did, default=False)) else None
 
     def cids(self, did: DeckId, children: bool = False) -> list[anki.cards.CardId]:
         if not children:
             return self.col.db.list("select id from cards where did=?", did)
         dids = [did]
-        for name, id in self.children(did):
-            dids.append(id)
+        dids.extend(id for name, id in self.children(did))
         return self.col.db.list(f"select id from cards where did in {ids2str(dids)}")
 
     def for_card_ids(self, cids: list[anki.cards.CardId]) -> list[DeckId]:
@@ -445,8 +423,7 @@ class DeckManager(DeprecatedNamesMixin):
 
     @classmethod
     def immediate_parent(cls, name: str) -> str | None:
-        parent_path = cls.immediate_parent_path(name)
-        if parent_path:
+        if parent_path := cls.immediate_parent_path(name):
             return "::".join(parent_path)
         return None
 
@@ -494,10 +471,7 @@ class DeckManager(DeprecatedNamesMixin):
         parents: list[DeckDict] = []
         # convert to objects
         for parent_name in parents_names:
-            if name_map:
-                deck = name_map[parent_name]
-            else:
-                deck = self.get(self.id(parent_name))
+            deck = name_map[parent_name] if name_map else self.get(self.id(parent_name))
             parents.append(deck)
         return parents
 
@@ -511,8 +485,7 @@ class DeckManager(DeprecatedNamesMixin):
 
         while names:
             head.append(names.pop(0))
-            deck = self.by_name("::".join(head))
-            if deck:
+            if deck := self.by_name("::".join(head)):
                 parents.append(deck)
 
         return parents

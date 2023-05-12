@@ -100,7 +100,7 @@ class NoteImporter(Importer):
     def initMapping(self) -> None:
         flds = [f["name"] for f in self.model["flds"]]
         # truncate to provided count
-        flds = flds[0 : self.fields()]
+        flds = flds[:self.fields()]
         # if there's room left, add tags
         if self.fields() > len(flds):
             flds.append("_tags")
@@ -119,11 +119,7 @@ class NoteImporter(Importer):
         "Convert each card into a note, apply attributes and add to col."
         if not self.mappingOk():
             raise Exception("mapping not ok")
-        # note whether tags are mapped
-        self._tagsMapped = False
-        for f in self.mapping:
-            if f == "_tags":
-                self._tagsMapped = True
+        self._tagsMapped = any(f == "_tags" for f in self.mapping)
         # gather checks for duplicate comparison
         csums: dict[str, list[NoteId]] = {}
         for csum, id in self.col.db.execute(
@@ -177,8 +173,7 @@ class NoteImporter(Importer):
                         # duplicate
                         found = True
                         if self.importMode == UPDATE_MODE:
-                            data = self.updateData(n, id, sflds)
-                            if data:
+                            if data := self.updateData(n, id, sflds):
                                 updates.append(data)
                                 updateLog.append(
                                     self.col.tr.importing_first_field_matched(val=fld0)
@@ -199,10 +194,8 @@ class NoteImporter(Importer):
                                 )
                                 dupes.append(fld0)
                             found = False
-            # newly add
             if not found:
-                new_data = self.newData(n)
-                if new_data:
+                if new_data := self.newData(n):
                     new.append(new_data)
                     # note that we've seen this note once already
                     firsts[fld0] = True
@@ -337,9 +330,10 @@ where id = ? and flds != ?""",
             note.fieldsStr = unicodedata.normalize("NFC", note.fieldsStr)
 
     def updateCards(self) -> None:
-        data = []
-        for nid, ord, c in self._cards:
-            data.append((c.ivl, c.due, c.factor, c.reps, c.lapses, nid, ord))
+        data = [
+            (c.ivl, c.due, c.factor, c.reps, c.lapses, nid, ord)
+            for nid, ord, c in self._cards
+        ]
         # we assume any updated cards are reviews
         self.col.db.executemany(
             """

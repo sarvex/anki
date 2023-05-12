@@ -176,10 +176,7 @@ class DeckConf(QDialog):
 
     def listToUser(self, l: list[Union[int, float]]) -> str:
         def num_to_user(n: Union[int, float]) -> str:
-            if n == round(n):
-                return str(int(n))
-            else:
-                return str(n)
+            return str(int(n)) if n == round(n) else str(n)
 
         return " ".join(map(num_to_user, l))
 
@@ -191,10 +188,7 @@ class DeckConf(QDialog):
         for d in self.mw.col.decks.parents(self.deck["id"]):
             c = self.mw.col.decks.config_dict_for_deck_id(d["id"])
             x = c[type]["perDay"]
-            if lim == -1:
-                lim = x
-            else:
-                lim = min(x, lim)
+            lim = x if lim == -1 else min(x, lim)
         return tr.scheduling_parent_limit(val=lim)
 
     def loadConf(self) -> None:
@@ -315,7 +309,7 @@ class DeckConf(QDialog):
         # general
         c = self.conf
         c["maxTaken"] = f.maxTaken.value()
-        c["timer"] = f.showTimer.isChecked() and 1 or 0
+        c["timer"] = 1 if f.showTimer.isChecked() else 0
         c["autoplay"] = f.autoplaySounds.isChecked()
         c["replayq"] = f.replayQuestion.isChecked()
         gui_hooks.deck_conf_will_save_config(self, self.deck, self.conf)

@@ -78,7 +78,7 @@ def python_type_inner(field):
     elif type == TYPE_MESSAGE:
         return fullname(field.message_type.full_name)
     elif type == TYPE_ENUM:
-        return fullname(field.enum_type.full_name) + ".V"
+        return f"{fullname(field.enum_type.full_name)}.V"
     else:
         raise Exception(f"unknown type: {type}")
 
@@ -145,7 +145,7 @@ def render_method(service_idx, method_idx, method):
 
 """
 
-    if not method.name in RAW_ONLY:
+    if method.name not in RAW_ONLY:
         buf += f"""\
     def {name}({input_params}) -> {return_type}:
         {input_assign_full}

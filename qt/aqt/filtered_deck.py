@@ -116,10 +116,7 @@ class FilteredDeckConfigDialog(QDialog):
         self.form.name.setPlaceholderText(deck.name)
 
         existing = deck.id != 0
-        if existing:
-            build_label = tr.actions_rebuild()
-        else:
-            build_label = tr.decks_build()
+        build_label = tr.actions_rebuild() if existing else tr.decks_build()
         self.form.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(
             build_label
         )

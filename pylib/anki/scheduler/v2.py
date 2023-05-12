@@ -86,24 +86,22 @@ class Scheduler(SchedulerBaseWithLegacy):
         self._haveQueues = True
 
     def _reset_counts(self) -> None:
-        node = self.deck_due_tree(self._current_deck_id)
-        if not node:
+        if node := self.deck_due_tree(self._current_deck_id):
+            self.newCount = node.new_count
+            self.revCount = node.review_count
+            self._immediate_learn_count = node.learn_count
+        else:
             # current deck points to a missing deck
             self.newCount = 0
             self.revCount = 0
             self._immediate_learn_count = 0
-        else:
-            self.newCount = node.new_count
-            self.revCount = node.review_count
-            self._immediate_learn_count = node.learn_count
 
     def getCard(self) -> Card | None:
         """Pop the next card from the queue. None if finished."""
         self._checkDay()
         if not self._haveQueues:
             self.reset()
-        card = self._getCard()
-        if card:
+        if card := self._getCard():
             if not self._burySiblingsOnAnswer:
                 self._burySiblings(card)
             card.start_timer()
@@ -112,42 +110,29 @@ class Scheduler(SchedulerBaseWithLegacy):
 
     def _getCard(self) -> Card | None:
         """Return the next due card, or None."""
-        # learning card due?
-        c = self._getLrnCard()
-        if c:
+        if c := self._getLrnCard():
             return c
 
         # new first, or time for one?
         if self._timeForNewCard():
-            c = self._getNewCard()
-            if c:
+            if c := self._getNewCard():
                 return c
 
         # day learning first and card due?
         dayLearnFirst = self.col.conf.get("dayLearnFirst", False)
         if dayLearnFirst:
-            c = self._getLrnDayCard()
-            if c:
+            if c := self._getLrnDayCard():
                 return c
 
-        # card due for review?
-        c = self._getRevCard()
-        if c:
+        if c := self._getRevCard():
             return c
 
         # day learning card due?
         if not dayLearnFirst:
-            c = self._getLrnDayCard()
-            if c:
+            if c := self._getLrnDayCard():
                 return c
 
-        # new cards left?
-        c = self._getNewCard()
-        if c:
-            return c
-
-        # collapse or finish
-        return self._getLrnCard(collapse=True)
+        return c if (c := self._getNewCard()) else self._getLrnCard(collapse=True)
 
     # Fetching new cards
     ##########################################################################
@@ -164,8 +149,7 @@ class Scheduler(SchedulerBaseWithLegacy):
             return False
         while self._newDids:
             did = self._newDids[0]
-            lim = min(self.queueLimit, self._deckNewLimit(did))
-            if lim:
+            if lim := min(self.queueLimit, self._deckNewLimit(did)):
                 # fill the queue with the current did
                 self._newQueue = self.col.db.list(
                     f"""
@@ -195,13 +179,12 @@ class Scheduler(SchedulerBaseWithLegacy):
         return None
 
     def _updateNewCardRatio(self) -> None:
-        if self.col.conf["newSpread"] == NEW_CARDS_DISTRIBUTE:
-            if self.newCount:
-                self.newCardModulus = (self.newCount + self.revCount) // self.newCount
-                # if there are cards to review, ensure modulo >= 2
-                if self.revCount:
-                    self.newCardModulus = max(2, self.newCardModulus)
-                return
+        if self.col.conf["newSpread"] == NEW_CARDS_DISTRIBUTE and self.newCount:
+            self.newCardModulus = (self.newCount + self.revCount) // self.newCount
+            # if there are cards to review, ensure modulo >= 2
+            if self.revCount:
+                self.newCardModulus = max(2, self.newCardModulus)
+            return
         self.newCardModulus = 0
 
     def _timeForNewCard(self) -> bool | None:
@@ -228,10 +211,7 @@ class Scheduler(SchedulerBaseWithLegacy):
         # for the deck and each of its parents
         for g in [sel] + self.col.decks.parents(did):
             rem = fn(g)
-            if lim == -1:
-                lim = rem
-            else:
-                lim = min(rem, lim)
+            lim = rem if lim == -1 else min(rem, lim)
         return lim
 
     def _newForDeck(self, did: DeckId, lim: int) -> int:
@@ -415,8 +395,7 @@ did = ? and queue = {QUEUE_TYPE_DAY_LEARN_RELEARN} and due <= ? limit ?""",
         if not self.revCount:
             return False
 
-        lim = min(self.queueLimit, self._currentRevLimit())
-        if lim:
+        if lim := min(self.queueLimit, self._currentRevLimit()):
             self._revQueue = self.col.db.list(
                 f"""
 select id from cards where
@@ -561,10 +540,9 @@ limit ?"""
         if ease == BUTTON_FOUR:
             self._rescheduleAsRev(card, conf, True)
             leaving = True
-        # next step?
         elif ease == BUTTON_THREE:
             # graduation time?
-            if (card.left % 1000) - 1 <= 0:
+            if card.left % 1000 <= 1:
                 self._rescheduleAsRev(card, conf, False)
                 leaving = True
             else:
@@ -634,15 +612,11 @@ limit ?"""
         return delay
 
     def _delayForGrade(self, conf: QueueConfig, left: int) -> int:
-        left = left % 1000
+        left %= 1000
         try:
             delay = conf["delays"][-left]
         except IndexError:
-            if conf["delays"]:
-                delay = conf["delays"][0]
-            else:
-                # user deleted final step; use dummy value
-                delay = 1
+            delay = conf["delays"][0] if conf["delays"] else 1
         return int(delay * 60)
 
     def _delayForRepeatingGrade(self, conf: QueueConfig, left: int) -> Any:
@@ -655,8 +629,7 @@ limit ?"""
             else:
                 # no next step, use dummy
                 delay2 = delay1 * 2
-            avg = (delay1 + max(delay1, delay2)) // 2
-            return avg
+            return (delay1 + max(delay1, delay2)) // 2
         return delay1
 
     def _lrnConf(self, card: Card) -> Any:
@@ -715,14 +688,9 @@ limit ?"""
         self, card: Card, conf: QueueConfig, early: bool, fuzz: bool = True
     ) -> Any:
         if card.type in (CARD_TYPE_REV, CARD_TYPE_RELEARNING):
-            bonus = early and 1 or 0
+            bonus = 1 if early else 0
             return card.ivl + bonus
-        if not early:
-            # graduate
-            ideal = conf["ints"][0]
-        else:
-            # early remove
-            ideal = conf["ints"][1]
+        ideal = conf["ints"][0] if not early else conf["ints"][1]
         if fuzz:
             ideal = self._fuzzedIvl(ideal)
         return ideal
@@ -854,7 +822,7 @@ limit ?"""
 
         if conf["delays"] and not suspended:
             card.type = CARD_TYPE_RELEARNING
-            delay = self._moveToFirstStep(card, conf)
+            return self._moveToFirstStep(card, conf)
         else:
             # no relearning steps
             self._updateRevIvlOnFail(card, conf)
@@ -862,9 +830,7 @@ limit ?"""
             # need to reset the queue after rescheduling
             if suspended:
                 card.queue = QUEUE_TYPE_SUSPENDED
-            delay = 0
-
-        return delay
+            return 0
 
     def _lapseIvl(self, card: Card, conf: QueueConfig) -> Any:
         ivl = max(1, conf["minInt"], int(card.ivl * conf["mult"]))
@@ -913,10 +879,7 @@ limit ?"""
         conf = self._revConf(card)
         fct = card.factor / 1000
         hardFactor = conf.get("hardFactor", 1.2)
-        if hardFactor > 1:
-            hardMin = card.ivl
-        else:
-            hardMin = 0
+        hardMin = card.ivl if hardFactor > 1 else 0
         ivl2 = self._constrainedIvl(card.ivl * hardFactor, conf, hardMin, fuzz)
         if ease == BUTTON_TWO:
             return ivl2
@@ -925,10 +888,9 @@ limit ?"""
         if ease == BUTTON_THREE:
             return ivl3
 
-        ivl4 = self._constrainedIvl(
+        return self._constrainedIvl(
             (card.ivl + delay) * fct * conf["ease4"], conf, ivl3, fuzz
         )
-        return ivl4
 
     def _fuzzedIvl(self, ivl: int) -> int:
         min, max = self._fuzzIvlRange(ivl)
@@ -973,9 +935,10 @@ limit ?"""
     # next interval for card when answered early+correctly
     def _earlyReviewIvl(self, card: Card, ease: int) -> int:
         if (
-            not (card.odid and card.type == CARD_TYPE_REV)
+            not card.odid
+            or card.type != CARD_TYPE_REV
             or not card.factor
-            or not ease > 1
+            or ease <= 1
         ):
             raise Exception("invalid input to earlyReviewIvl")
 
@@ -1140,9 +1103,7 @@ and (queue={QUEUE_TYPE_NEW} or (queue={QUEUE_TYPE_REV} and due<=?))""",
 
     def answerButtons(self, card: Card) -> int:
         conf = self._cardConf(card)
-        if card.odid and not conf["resched"]:
-            return 2
-        return 4
+        return 2 if card.odid and not conf["resched"] else 4
 
     def nextIvlStr(self, card: Card, ease: int, short: bool = False) -> str:
         "Return the next interval for CARD as a string."

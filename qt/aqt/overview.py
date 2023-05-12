@@ -106,7 +106,7 @@ class Overview:
             self.mw.moveToState("deckBrowser")
         elif url == "review":
             openLink(f"{aqt.appShared}info/{self.sid}?v={self.sidVer}")
-        elif url == "studymore" or url == "customStudy":
+        elif url in {"studymore", "customStudy"}:
             self.onStudyMore()
         elif url == "unbury":
             self.on_unbury()
@@ -213,10 +213,7 @@ class Overview:
                 desc = self.mw.col.render_markdown(desc)
         if not desc:
             return "<p>"
-        if deck["dyn"]:
-            dyn = "dyn"
-        else:
-            dyn = ""
+        dyn = "dyn" if deck["dyn"] else ""
         return f'<div class="descfont descmid description {dyn}">{desc}</div>'
 
     def _table(self) -> str | None:

@@ -141,12 +141,7 @@ def lang_to_disk_lang(lang: str) -> str:
         "zh_TW",
     ):
         return lang.replace("_", "-")
-    # other languages have the region portion stripped
-    match = re.match("(.*)_", lang)
-    if match:
-        return match.group(1)
-    else:
-        return lang
+    return match.group(1) if (match := re.match("(.*)_", lang)) else lang
 
 
 # the currently set interface language
@@ -208,7 +203,7 @@ def get_def_lang(lang: str | None = None) -> tuple[int, str]:
 
 
 def is_rtl(lang: str) -> bool:
-    return lang in ("he", "ar", "fa")
+    return lang in {"he", "ar", "fa"}
 
 
 # strip off unicode isolation markers from a translated string

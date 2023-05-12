@@ -60,11 +60,7 @@ class ExportDialog(QDialog):
             0, [f"{e.name()} (.{e.extension})" for e in self.exporter_classes]
         )
         qconnect(self.frm.format.activated, self.exporter_changed)
-        if self.nids is None and not did:
-            # file>export defaults to colpkg
-            default_exporter_idx = 1
-        else:
-            default_exporter_idx = 0
+        default_exporter_idx = 1 if self.nids is None and not did else 0
         self.frm.format.setCurrentIndex(default_exporter_idx)
         self.exporter_changed(default_exporter_idx)
         # deck list
@@ -112,7 +108,7 @@ class ExportDialog(QDialog):
                 title=tr.actions_export(),
                 dir_description="export",
                 key=self.exporter.name(),
-                ext="." + self.exporter.extension,
+                ext=f".{self.exporter.extension}",
                 fname=filename,
             )
             if not path:

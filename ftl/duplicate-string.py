@@ -92,8 +92,7 @@ for lang in langs:
         if not os.path.exists(ftl_dir):
             continue
 
-    entry = get_entry(ftl_path, old_key)
-    if entry:
+    if entry := get_entry(ftl_path, old_key):
         entries[lang] = entry
     else:
         assert lang != "templates"

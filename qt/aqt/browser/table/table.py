@@ -320,7 +320,7 @@ class Table:
 
     def _save_header(self) -> None:
         saveHeader(
-            self._view.horizontalHeader(), self._state.GEOMETRY_KEY_PREFIX + "31"
+            self._view.horizontalHeader(), f"{self._state.GEOMETRY_KEY_PREFIX}31"
         )
 
     def _restore_header(self) -> None:
@@ -328,7 +328,7 @@ class Table:
         # Qt 6.3.1 won't allow headers to be clicked when restoring state from a previous
         # version, so we need to bump the key.
         restoreHeader(
-            self._view.horizontalHeader(), self._state.GEOMETRY_KEY_PREFIX + "31"
+            self._view.horizontalHeader(), f"{self._state.GEOMETRY_KEY_PREFIX}31"
         )
         self._set_column_sizes()
         self._set_sort_indicator()
@@ -547,9 +547,7 @@ class Table:
         if rows:
             if len(rows) < self.SELECTION_LIMIT:
                 return rows
-            if current and current in rows:
-                return [current]
-            return rows[0:1]
+            return [current] if current and current in rows else rows[:1]
         return [current if current else 0]
 
     def _intersected_selection(self) -> tuple[list[int], int | None]:

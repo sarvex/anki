@@ -90,8 +90,7 @@ class MediaServer(threading.Thread):
             )
             if dev_mode:
                 print(
-                    "Serving on http://%s:%s"
-                    % (self.server.effective_host, self.server.effective_port)  # type: ignore
+                    f"Serving on http://{self.server.effective_host}:{self.server.effective_port}"
                 )
 
             self._ready.set()
@@ -302,11 +301,11 @@ def _extract_internal_request(
         if ext == ".css":
             additional_prefix = "css/"
         elif ext == ".js":
-            if base in ("browsersel", "jquery-ui", "jquery", "plot"):
-                additional_prefix = "js/vendor/"
-            else:
-                additional_prefix = "js/"
-    # handle requests for vendored libraries
+            additional_prefix = (
+                "js/vendor/"
+                if base in ("browsersel", "jquery-ui", "jquery", "plot")
+                else "js/"
+            )
     elif dirname == "_anki/js/vendor":
         base, ext = os.path.splitext(filename)
 
@@ -352,14 +351,16 @@ def _extract_addon_request(path: str) -> LocalFileRequest | NotFound | None:
     if not addon:
         return None
 
-    pattern = manager.getWebExports(addon)
-    if not pattern:
+    if pattern := manager.getWebExports(addon):
+        return (
+            LocalFileRequest(root=manager.addonsFolder(), path=addon_path)
+            if re.fullmatch(pattern, sub_path)
+            else NotFound(
+                message=f"couldn't locate item in add-on folder {path}"
+            )
+        )
+    else:
         return None
-
-    if re.fullmatch(pattern, sub_path):
-        return LocalFileRequest(root=manager.addonsFolder(), path=addon_path)
-
-    return NotFound(message=f"couldn't locate item in add-on folder {path}")
 
 
 def _extract_request(
@@ -539,7 +540,4 @@ def legacy_page_data() -> Response:
 # this currently only handles a single method; in the future, idempotent
 # requests like i18nResources should probably be moved here
 def _extract_dynamic_get_request(path: str) -> DynamicRequest | None:
-    if path == "legacyPageData":
-        return legacy_page_data
-    else:
-        return None
+    return legacy_page_data if path == "legacyPageData" else None

@@ -149,13 +149,12 @@ class MainWebView(AnkiWebView):
         if handled := super().eventFilter(obj, evt):
             return handled
 
-        if evt.type() == QEvent.Type.Leave:
-            # Show toolbar when mouse moves outside main webview
-            # and automatically hide it with delay after mouse has entered again
-            if self.mw.pm.hide_top_bar() or self.mw.pm.hide_bottom_bar():
-                self.mw.toolbarWeb.show()
-                self.mw.bottomWeb.show()
-                return True
+        if evt.type() == QEvent.Type.Leave and (
+            self.mw.pm.hide_top_bar() or self.mw.pm.hide_bottom_bar()
+        ):
+            self.mw.toolbarWeb.show()
+            self.mw.bottomWeb.show()
+            return True
 
         if evt.type() == QEvent.Type.Enter:
             self.mw.toolbarWeb.hide_timer.start()
@@ -210,11 +209,7 @@ class AnkiQt(QMainWindow):
             self.onAppMsg(args[0])
         # Load profile in a timer so we can let the window finish init and not
         # close on profile load error.
-        if is_win:
-            fn = self.setupProfileAfterWebviewsLoaded
-        else:
-            fn = self.setupProfile
-
+        fn = self.setupProfileAfterWebviewsLoaded if is_win else self.setupProfile
         def on_window_init() -> None:
             fn()
             gui_hooks.main_window_did_init()
@@ -378,8 +373,7 @@ class AnkiQt(QMainWindow):
         return not checkInvalidFilename(name) and name != "addons21"
 
     def onAddProfile(self) -> None:
-        name = getOnlyText(tr.actions_name()).strip()
-        if name:
+        if name := getOnlyText(tr.actions_name()).strip():
             if name in self.pm.profiles():
                 showWarning(tr.qt_misc_name_exists())
                 return
@@ -700,8 +694,7 @@ class AnkiQt(QMainWindow):
     def moveToState(self, state: MainWindowState, *args: Any) -> None:
         # print("-> move from", self.state, "to", state)
         oldState = self.state
-        cleanup = getattr(self, f"_{oldState}Cleanup", None)
-        if cleanup:
+        if cleanup := getattr(self, f"_{oldState}Cleanup", None):
             # pylint: disable=not-callable
             cleanup(state)
         self.clearStateShortcuts()
@@ -741,7 +734,7 @@ class AnkiQt(QMainWindow):
             self.bottomWeb.hide_timer.start()
 
     def _reviewCleanup(self, newState: MainWindowState) -> None:
-        if newState != "resetRequired" and newState != "review":
+        if newState not in ["resetRequired", "review"]:
             self.reviewer.cleanup()
             self.toolbarWeb.elevate()
             self.toolbarWeb.show()
@@ -856,10 +849,7 @@ class AnkiQt(QMainWindow):
         extra: str = "",
     ) -> str:
         class_ = f"but {class_}"
-        if key:
-            key = tr.actions_shortcut_key(val=key)
-        else:
-            key = ""
+        key = tr.actions_shortcut_key(val=key) if key else ""
         return """
 <button id="{}" class="{}" onclick="pycmd('{}');return false;"
 title="{}" {}>{}</button>""".format(
@@ -997,15 +987,13 @@ title="{}" {}>{}</button>""".format(
     def on_sync_button_clicked(self) -> None:
         if self.media_syncer.is_syncing():
             self.media_syncer.show_sync_log()
+        elif auth := self.pm.sync_auth():
+            self._sync_collection_and_media(self._refresh_after_sync)
         else:
-            auth = self.pm.sync_auth()
-            if not auth:
-                sync_login(
-                    self,
-                    lambda: self._sync_collection_and_media(self._refresh_after_sync),
-                )
-            else:
-                self._sync_collection_and_media(self._refresh_after_sync)
+            sync_login(
+                self,
+                lambda: self._sync_collection_and_media(self._refresh_after_sync),
+            )
 
     def _refresh_after_sync(self) -> None:
         self.toolbar.redraw()
@@ -1072,14 +1060,7 @@ title="{}" {}>{}</button>""".format(
 
     def setupStyle(self) -> None:
         theme_manager.apply_style()
-        if is_lin:
-            # On Linux, the check requires invoking an external binary,
-            # and can potentially produce verbose logs on systems where
-            # the preferred theme cannot be determined,
-            # which we don't want to be doing frequently
-            interval_secs = 300
-        else:
-            interval_secs = 2
+        interval_secs = 300 if is_lin else 2
         self.progress.timer(
             interval_secs * 1000,
             theme_manager.apply_style,
@@ -1212,8 +1193,7 @@ title="{}" {}>{}</button>""".format(
         deck = self._selectedDeck()
         if not deck:
             return
-        want_old = KeyboardModifiersPressed().shift
-        if want_old:
+        if want_old := KeyboardModifiersPressed().shift:
             aqt.dialogs.open("DeckStats", self)
         else:
             aqt.dialogs.open("NewDeckStats", self)
@@ -1771,12 +1751,10 @@ title="{}" {}>{}</button>""".format(
         except:
             self._output += traceback.format_exc()
         self._captureOutput(False)
-        buf = ""
-        for c, line in enumerate(text.strip().split("\n")):
-            if c == 0:
-                buf += f">>> {line}\n"
-            else:
-                buf += f"... {line}\n"
+        buf = "".join(
+            f">>> {line}\n" if c == 0 else f"... {line}\n"
+            for c, line in enumerate(text.strip().split("\n"))
+        )
         try:
             to_append = buf + (self._output or "<no output>")
             to_append = gui_hooks.debug_console_did_evaluate_python(
@@ -1817,9 +1795,8 @@ title="{}" {}>{}</button>""".format(
         for action_ in tgt.findChildren(QAction):
             action = cast(QAction, action_)
             txt = str(action.text())
-            m = re.match(r"^(.+)\(&.+\)(.+)?", txt)
-            if m:
-                action.setText(m.group(1) + (m.group(2) or ""))
+            if m := re.match(r"^(.+)\(&.+\)(.+)?", txt):
+                action.setText(m[1] + (m[2] or ""))
 
     def hideStatusTips(self) -> None:
         for action in self.findChildren(QAction):

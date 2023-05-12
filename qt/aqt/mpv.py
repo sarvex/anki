@@ -146,7 +146,7 @@ class MPVBase:
         --input-unix-socket option.
         """
         if is_win:
-            self._sock_filename = "ankimpv{}".format(os.getpid())
+            self._sock_filename = f"ankimpv{os.getpid()}"
             return
         fd, self._sock_filename = tempfile.mkstemp(prefix="mpv.")
         os.close(fd)
@@ -163,7 +163,7 @@ class MPVBase:
                 # named pipe
                 try:
                     self._sock = win32file.CreateFile(
-                        r"\\.\pipe\{}".format(self._sock_filename),
+                        f"\.\pipe\{self._sock_filename}",
                         win32file.GENERIC_READ | win32file.GENERIC_WRITE,
                         0,
                         None,
@@ -175,9 +175,7 @@ class MPVBase:
                         self._sock, 1, None, None  # PIPE_NOWAIT
                     )
                 except pywintypes.error as err:
-                    if err.args[0] == winerror.ERROR_FILE_NOT_FOUND:
-                        pass
-                    else:
+                    if err.args[0] != winerror.ERROR_FILE_NOT_FOUND:
                         break
                 else:
                     break
@@ -246,10 +244,10 @@ class MPVBase:
                 r, w, e = select.select([self._sock], [], [], 1)
                 if r:
                     try:
-                        b = self._sock.recv(1024)
-                        if not b:
+                        if b := self._sock.recv(1024):
+                            buf += b
+                        else:
                             break
-                        buf += b
                     except ConnectionResetError:
                         return
 

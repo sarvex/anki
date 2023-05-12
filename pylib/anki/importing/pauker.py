@@ -47,11 +47,7 @@ class PaukerImporter(NoteImporter):
         finally:
             f.close()
 
-        index = -4
-
-        for batch in lesson.findall("./Batch"):
-            index += 1
-
+        for index, batch in enumerate(lesson.findall("./Batch"), start=-3):
             for card in batch.findall("./Card"):
                 # Create a note for this card.
                 front = card.findtext("./FrontSide/Text")

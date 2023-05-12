@@ -32,7 +32,7 @@ class SmartDict(dict):
     def __init__(self, *a, **kw) -> None:
         if a:
             if isinstance(type(a[0]), dict):
-                kw.update(a[0])
+                kw |= a[0]
             elif isinstance(type(a[0]), object):
                 kw.update(a[0].__dict__)
             elif hasattr(a[0], "__class__") and a[0].__class__.__name__ == "SmartDict":
@@ -93,7 +93,7 @@ class SupermemoXmlImporter(NoteImporter):
         self.initMapping()
 
         self.lines = None
-        self.numFields = int(2)
+        self.numFields = 2
 
         # SmXmlParse VARIABLES
         self.xmldoc = None
@@ -130,8 +130,7 @@ class SupermemoXmlImporter(NoteImporter):
     def _fudgeText(self, text: str) -> str:
         "Replace sm syntax to Anki syntax"
         text = text.replace("\n\r", "<br>")
-        text = text.replace("\n", "<br>")
-        return text
+        return text.replace("\n", "<br>")
 
     def _unicode2ascii(self, str: str) -> str:
         "Remove diacritic punctuation from strings (titles)"
@@ -152,14 +151,7 @@ class SupermemoXmlImporter(NoteImporter):
         html = re.sub("&amp;", "&", html)
 
         # https://anki.tenderapp.com/discussions/ankidesktop/39543-anki-is-replacing-the-character-by-when-i-exit-the-html-edit-mode-ctrlshiftx
-        if html.find(">") < 0:
-            return html
-
-        # unescaped solitary chars < or > that were ok for minidom confuse btfl soup
-        # html = re.sub(u'>',u'&gt;',html)
-        # html = re.sub(u'<',u'&lt;',html)
-
-        return str(BeautifulSoup(html, "html.parser"))
+        return html if html.find(">") < 0 else str(BeautifulSoup(html, "html.parser"))
 
     def _afactor2efactor(self, af: float) -> float:
         # Adapted from <http://www.supermemo.com/beta/xml/xml-core.htm>
@@ -178,10 +170,7 @@ class SupermemoXmlImporter(NoteImporter):
 
         # Scale af to the range 0..1
         af_scaled = (af - af_min) / (af_max - af_min)
-        # Rescale to the interval ef_min..ef_max
-        ef = ef_min + af_scaled * (ef_max - ef_min)
-
-        return ef
+        return ef_min + af_scaled * (ef_max - ef_min)
 
     ## DEFAULT IMPORTER METHODS
 
@@ -239,17 +228,13 @@ class SupermemoXmlImporter(NoteImporter):
             )
             note.cards[0] = card
 
-        # categories & tags
-        # it's worth to have every theme (tree structure of sm collection) stored in tags, but sometimes not
-        # you can deceide if you are going to tag all toppics or just that containing some pattern
-        tTaggTitle = False
-        for pattern in self.META.pathsToBeTagged:
-            if (
+        tTaggTitle = any(
+            (
                 item.lTitle is not None
                 and pattern.lower() in " ".join(item.lTitle).lower()
-            ):
-                tTaggTitle = True
-                break
+            )
+            for pattern in self.META.pathsToBeTagged
+        )
         if tTaggTitle or self.META.tagAllTopics:
             # normalize - remove diacritic punctuation from unicode chars to ascii
             item.lTitle = [self._unicode2ascii(topic) for topic in item.lTitle]
@@ -278,18 +263,9 @@ class SupermemoXmlImporter(NoteImporter):
     def logger(self, text: str, level: int = 1) -> None:
         "Wrapper for Anki logger"
 
-        dLevels = {0: "", 1: "Info", 2: "Verbose", 3: "Debug"}
-        if level <= self.META.loggerLevel:
-            # self.deck.updateProgress(_(text))
-
-            if self.META.logToStdOutput:
-                print(
-                    self.__class__.__name__
-                    + " - "
-                    + dLevels[level].ljust(9)
-                    + " -\t"
-                    + text
-                )
+        if level <= self.META.loggerLevel and self.META.logToStdOutput:
+            dLevels = {0: "", 1: "Info", 2: "Verbose", 3: "Debug"}
+            print(f"{self.__class__.__name__} - {dLevels[level].ljust(9)}" + " -\t" + text)
 
     # OPEN AND LOAD
     def openAnything(self, source):
@@ -324,9 +300,8 @@ class SupermemoXmlImporter(NoteImporter):
         """Load source file and parse with xml.dom.minidom"""
         self.source = source
         self.logger("Load started...")
-        sock = open(self.source, encoding="utf8")
-        self.xmldoc = minidom.parse(sock).documentElement
-        sock.close()
+        with open(self.source, encoding="utf8") as sock:
+            self.xmldoc = minidom.parse(sock).documentElement
         self.logger("Load done.")
 
     # PARSE
@@ -336,12 +311,12 @@ class SupermemoXmlImporter(NoteImporter):
         if node is None and self.xmldoc is not None:
             node = self.xmldoc
 
-        _method = "parse_%s" % node.__class__.__name__
+        _method = f"parse_{node.__class__.__name__}"
         if hasattr(self, _method):
             parseMethod = getattr(self, _method)
             parseMethod(node)
         else:
-            self.logger("No handler for method %s" % _method, level=3)
+            self.logger(f"No handler for method {_method}", level=3)
 
     def parse_Document(self, node):
         "Parse XML document"
@@ -351,12 +326,12 @@ class SupermemoXmlImporter(NoteImporter):
     def parse_Element(self, node: Element) -> None:
         "Parse XML element"
 
-        _method = "do_%s" % node.tagName
+        _method = f"do_{node.tagName}"
         if hasattr(self, _method):
             handlerMethod = getattr(self, _method)
             handlerMethod(node)
         else:
-            self.logger("No handler for method %s" % _method, level=3)
+            self.logger(f"No handler for method {_method}", level=3)
             # print traceback.print_exc()
 
     def parse_Text(self, node: Text) -> None:
@@ -401,34 +376,24 @@ class SupermemoXmlImporter(NoteImporter):
         # Process cntElm if is valid Item (and not an Topic etc..)
         # if smel.Lapses != None and smel.Interval != None and smel.Question != None and smel.Answer != None:
         if smel.Title is None and smel.Question is not None and smel.Answer is not None:
-            if smel.Answer.strip() != "" and smel.Question.strip() != "":
-
-                # migrate only memorized otherway skip/continue
-                if self.META.onlyMemorizedItems and not (int(smel.Interval) > 0):
-                    self.logger("Element skipped  \t- not memorized ...", level=3)
-                else:
-                    # import sm element data to Anki
-                    self.addItemToCards(smel)
-                    self.logger("Import element \t- " + smel["Question"], level=3)
-
-                    # print element
-                    self.logger("-" * 45, level=3)
-                    for key in list(smel.keys()):
-                        self.logger(
-                            "\t{} {}".format((key + ":").ljust(15), smel[key]), level=3
-                        )
-            else:
+            if smel.Answer.strip() == "" or smel.Question.strip() == "":
                 self.logger("Element skipped  \t- no valid Q and A ...", level=3)
 
-        else:
-            # now we know that item was topic
-            # parsing of whole node is now finished
+            elif self.META.onlyMemorizedItems and int(smel.Interval) <= 0:
+                self.logger("Element skipped  \t- not memorized ...", level=3)
+            else:
+                # import sm element data to Anki
+                self.addItemToCards(smel)
+                self.logger("Import element \t- " + smel["Question"], level=3)
 
-            # test if it's really topic
-            if smel.Title is not None:
-                # remove topic from title list
-                t = self.cntMeta["title"].pop()
-                self.logger("End of topic \t- %s" % (t), level=2)
+                # print element
+                self.logger("-" * 45, level=3)
+                for key in list(smel.keys()):
+                    self.logger(f'\t{f"{key}:".ljust(15)} {smel[key]}', level=3)
+        elif smel.Title is not None:
+            # remove topic from title list
+            t = self.cntMeta["title"].pop()
+            self.logger("End of topic \t- %s" % (t), level=2)
 
     def do_Content(self, node: Element) -> None:
         "Process SM element Content"

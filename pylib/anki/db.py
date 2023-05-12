@@ -43,12 +43,7 @@ class DB(DeprecatedNamesMixin):
             if canonized.startswith(stmt):
                 self.mod = True
         start_time = time.time()
-        if ka:
-            # execute("...where id = :id", id=5)
-            res = self._db.execute(sql, ka)
-        else:
-            # execute("...where id = ?", 5)
-            res = self._db.execute(sql, a)
+        res = self._db.execute(sql, ka) if ka else self._db.execute(sql, a)
         if self.echo:
             # print a, ka
             print(sql, f"{(time.time() - start_time) * 1000:0.3f}ms")
@@ -81,10 +76,7 @@ class DB(DeprecatedNamesMixin):
         self._db.rollback()
 
     def scalar(self, *a: Any, **kw: Any) -> Any:
-        res = self.execute(*a, **kw).fetchone()
-        if res:
-            return res[0]
-        return None
+        return res[0] if (res := self.execute(*a, **kw).fetchone()) else None
 
     def all(self, *a: Any, **kw: Any) -> list:
         return self.execute(*a, **kw).fetchall()
@@ -119,10 +111,7 @@ class DB(DeprecatedNamesMixin):
         self._db.interrupt()
 
     def set_autocommit(self, autocommit: bool) -> None:
-        if autocommit:
-            self._db.isolation_level = None
-        else:
-            self._db.isolation_level = ""
+        self._db.isolation_level = None if autocommit else ""
 
     # strip out invalid utf-8 when reading from db
     def _text_factory(self, data: bytes) -> str:

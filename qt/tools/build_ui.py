@@ -40,7 +40,7 @@ def with_fixes_for_qt6(code: str) -> str:
     for line in code.splitlines():
         for substr in qt_bad_types:
             if substr in line:
-                line = line + "  # type: ignore"
+                line = f"{line}  # type: ignore"
                 break
         if line == "from . import icons_rc":
             continue
@@ -60,8 +60,7 @@ def with_fixes_for_qt5(code: str) -> str:
     )
     code = code.replace("Qt6", "Qt5")
     code = code.replace("QtGui.QAction", "QtWidgets.QAction")
-    code = code.replace("import icons_rc", "")
-    return code
+    return code.replace("import icons_rc", "")
 
 
 @dataclass

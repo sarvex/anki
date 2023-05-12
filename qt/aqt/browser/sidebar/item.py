@@ -131,7 +131,7 @@ class SidebarItem:
         "True if we or child matched."
         self._search_matches_self = lowered_text in self.name.lower()
         self._search_matches_child = any(
-            [child.search(lowered_text) for child in self.children]
+            child.search(lowered_text) for child in self.children
         )
         return self._search_matches_self or self._search_matches_child
 

@@ -280,23 +280,11 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             imgelm = f"""<img class="topbut" src="{iconstr}">"""
         else:
             imgelm = ""
-        if label or not imgelm:
-            labelelm = label or cmd
-        else:
-            labelelm = ""
-        if id:
-            idstr = f"id={id}"
-        else:
-            idstr = ""
-        if toggleable:
-            toggleScript = "toggleEditorButton(this);"
-        else:
-            toggleScript = ""
+        labelelm = label or cmd if label or not imgelm else ""
+        idstr = f"id={id}" if id else ""
+        toggleScript = "toggleEditorButton(this);" if toggleable else ""
         tip = shortcut(tip)
-        if rightside:
-            class_ = "linkb"
-        else:
-            class_ = "rounded"
+        class_ = "linkb" if rightside else "rounded"
         if not disables:
             class_ += " perm"
         return """<button tabindex=-1
@@ -353,10 +341,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
     def _onCardLayout(self) -> None:
         from aqt.clayout import CardLayout
 
-        if self.card:
-            ord = self.card.ord
-        else:
-            ord = 0
+        ord = self.card.ord if self.card else 0
         CardLayout(
             self.mw,
             self.note,
@@ -410,7 +395,6 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
                 gui_hooks.editor_did_fire_typing_timer(self.note)
                 self._check_and_update_duplicate_display_async()
 
-        # focused into field?
         elif cmd.startswith("focus"):
             (type, num) = cmd.split(":", 1)
             self.last_field_index = self.currentField = int(num)
@@ -420,7 +404,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
             model = self.note.note_type()
             flds = model["flds"]
 
-            any_sticky = any([fld["sticky"] for fld in flds])
+            any_sticky = any(fld["sticky"] for fld in flds)
             result = []
             for fld in flds:
                 if not any_sticky or fld["sticky"]:
@@ -543,7 +527,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
 
         if self.addMode:
             sticky = [field["sticky"] for field in self.note.note_type()["flds"]]
-            js += " setSticky(%s);" % json.dumps(sticky)
+            js += f" setSticky({json.dumps(sticky)});"
 
         if os.getenv("ANKI_EDITOR_INSERT_SYMBOLS"):
             js += " setInsertSymbolsEnabled();"
@@ -775,12 +759,10 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
     ######################################################################
 
     def urlToLink(self, url: str) -> str | None:
-        fname = self.urlToFile(url)
-        if not fname:
-            return '<a href="{}">{}</a>'.format(
-                url, html.escape(urllib.parse.unquote(url))
-            )
-        return self.fnameToLink(fname)
+        if fname := self.urlToFile(url):
+            return self.fnameToLink(fname)
+        else:
+            return f'<a href="{url}">{html.escape(urllib.parse.unquote(url))}</a>'
 
     def fnameToLink(self, fname: str) -> str:
         ext = fname.split(".")[-1].lower()
@@ -793,11 +775,14 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
 
     def urlToFile(self, url: str) -> str | None:
         l = url.lower()
-        for suffix in pics + audio:
-            if l.endswith(f".{suffix}"):
-                return self._retrieveURL(url)
-        # not a supported type
-        return None
+        return next(
+            (
+                self._retrieveURL(url)
+                for suffix in pics + audio
+                if l.endswith(f".{suffix}")
+            ),
+            None,
+        )
 
     def isURL(self, s: str) -> bool:
         s = s.lower()
@@ -823,8 +808,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         return ""
 
     def inlinedImageToLink(self, src: str) -> str:
-        fname = self.inlinedImageToFilename(src)
-        if fname:
+        if fname := self.inlinedImageToFilename(src):
             return self.fnameToLink(fname)
 
         return ""
@@ -920,28 +904,20 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
 
             # in internal pastes, rewrite mediasrv references to relative
             if internal:
-                m = re.match(r"http://127.0.0.1:\d+/(.*)$", src)
-                if m:
-                    tag["src"] = m.group(1)
-            else:
-                # in external pastes, download remote media
-                if self.isURL(src):
-                    fname = self._retrieveURL(src)
-                    if fname:
-                        tag["src"] = fname
-                elif src.startswith("data:image/"):
-                    # and convert inlined data
-                    tag["src"] = self.inlinedImageToFilename(src)
+                if m := re.match(r"http://127.0.0.1:\d+/(.*)$", src):
+                    tag["src"] = m[1]
+            elif self.isURL(src):
+                if fname := self._retrieveURL(src):
+                    tag["src"] = fname
+            elif src.startswith("data:image/"):
+                # and convert inlined data
+                tag["src"] = self.inlinedImageToFilename(src)
 
-        html = str(doc)
-        return html
+        return str(doc)
 
     def doPaste(self, html: str, internal: bool, extended: bool = False) -> None:
         html = self._pastePreFilter(html, internal)
-        if extended:
-            ext = "true"
-        else:
-            ext = "false"
+        ext = "true" if extended else "false"
         self.web.eval(f"pasteHTML({json.dumps(html)}, {json.dumps(internal)}, {ext});")
         gui_hooks.editor_did_paste(self, html, internal, extended)
 
@@ -1046,8 +1022,7 @@ require("anki/ui").loaded.then(() => require("anki/NoteEditor").instances[0].too
         # find the highest existing cloze
         highest = 0
         for name, val in list(self.note.items()):
-            m = re.findall(r"\{\{c(\d+)::", val)
-            if m:
+            if m := re.findall(r"\{\{c(\d+)::", val):
                 highest = max(highest, sorted(int(x) for x in m)[-1])
         # reuse last?
         if not KeyboardModifiersPressed().alt:
@@ -1299,8 +1274,7 @@ class EditorWebView(AnkiWebView):
             types = (self._processImage, self._processUrls, self._processText)
 
         for fn in types:
-            html = fn(mime, extended)
-            if html:
+            if html := fn(mime, extended):
                 return html, True
         return "", False
 
@@ -1368,8 +1342,7 @@ class EditorWebView(AnkiWebView):
 
         with open(path, "rb") as file:
             data = file.read()
-        fname = self.editor._addPastedImage(data, ext)
-        if fname:
+        if fname := self.editor._addPastedImage(data, ext):
             return self.editor.fnameToLink(fname)
         return None
 
@@ -1426,7 +1399,7 @@ def fontMungeHack(font: str) -> str:
 
 
 def munge_html(txt: str, editor: Editor) -> str:
-    return "" if txt in ("<br>", "<div><br></div>") else txt
+    return "" if txt in {"<br>", "<div><br></div>"} else txt
 
 
 def remove_null_bytes(txt: str, editor: Editor) -> str:

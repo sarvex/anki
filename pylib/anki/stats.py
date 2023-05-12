@@ -119,10 +119,10 @@ class CollectionStats:
         txt += self._section(self.easeGraph())
         txt += self._section(self.cardGraph())
         txt += self._section(self.footer())
-        return "<center>%s</center>" % txt
+        return f"<center>{txt}</center>"
 
     def _section(self, txt: str) -> str:
-        return "<div class=section>%s</div>" % txt
+        return f"<div class=section>{txt}</div>"
 
     css = """
 <style>
@@ -144,7 +144,7 @@ body { direction: ltr !important; }
         # studied today
         lim = self._revlogLimit()
         if lim:
-            lim = " and " + lim
+            lim = f" and {lim}"
         cards, thetime, failed, lrn, rev, relrn, filt = self.col.db.first(
             f"""
 select count(), sum(time)/1000,
@@ -166,14 +166,14 @@ from revlog where id > ? """
         filt = filt or 0
         # studied
         def bold(s: str) -> str:
-            return "<b>" + str(s) + "</b>"
+            return f"<b>{s}</b>"
 
         if cards:
             b += self.col._backend.studied_today_message(
                 cards=cards, seconds=float(thetime)
             )
             # again/pass count
-            b += "<br>" + "Again count: %s" % bold(failed)
+            b += f"<br>Again count: {bold(failed)}"
             if cards:
                 b += " " + "(%s correct)" % bold(
                     "%0.1f%%" % ((1 - failed / float(cards)) * 100)
@@ -397,7 +397,7 @@ group by day order by day"""
             t = "Hours"
             convHours = True
         txt2 = self._title("Review Time", "The time taken to answer the questions.")
-        txt2 += plot("time", timdata, ylabel=t, ylabel2="Cumulative %s" % t)
+        txt2 += plot("time", timdata, ylabel=t, ylabel2=f"Cumulative {t}")
         rep, tot2 = self._ansInfo(
             timsum, daysStud, fstDay, "minutes", convHours, total=tot
         )
@@ -427,10 +427,7 @@ group by day order by day"""
             % dict(x=studied, y=period, pct=studied / float(period) * 100),
             bold=False,
         )
-        if convHours:
-            tunit = "hours"
-        else:
-            tunit = unit
+        tunit = "hours" if convHours else unit
         # T: unit: can be hours, minutes, reviews... tot: the number of unit.
         self._line(i, "Total", "%(tot)s %(unit)s" % dict(unit=tunit, tot=int(tot)))
         if convHours:
@@ -477,18 +474,18 @@ group by day order by day"""
         ret = []
         for (n, col, lab) in spec:
             if len(totd[n]) and totcnt[n]:
-                # bars
-                ret.append(dict(data=sep[n], color=col, label=lab))
-                # lines
-                ret.append(
-                    dict(
-                        data=totd[n],
-                        color=col,
-                        label=None,
-                        yaxis=2,
-                        bars={"show": False},
-                        lines=dict(show=True),
-                        stack=-n,
+                ret.extend(
+                    (
+                        dict(data=sep[n], color=col, label=lab),
+                        dict(
+                            data=totd[n],
+                            color=col,
+                            label=None,
+                            yaxis=2,
+                            bars={"show": False},
+                            lines=dict(show=True),
+                            stack=-n,
+                        ),
                     )
                 )
         return (ret, alltot)
@@ -499,15 +496,9 @@ group by day order by day"""
             lims.append(
                 "id > %d" % ((self.col.sched.day_cutoff - (num * chunk * 86400)) * 1000)
             )
-        lims.append("did in %s" % self._limit())
-        if lims:
-            lim = "where " + " and ".join(lims)
-        else:
-            lim = ""
-        if self.type == PERIOD_MONTH:
-            tf = 60.0  # minutes
-        else:
-            tf = 3600.0  # hours
+        lims.append(f"did in {self._limit()}")
+        lim = "where " + " and ".join(lims) if lims else ""
+        tf = 60.0 if self.type == PERIOD_MONTH else 3600.0
         return self.col.db.all(
             """
 select
@@ -529,14 +520,8 @@ group by day order by day"""
         lim = self._revlogLimit()
         if lim:
             lims.append(lim)
-        if lims:
-            lim = "where " + " and ".join(lims)
-        else:
-            lim = ""
-        if self.type == PERIOD_MONTH:
-            tf = 60.0  # minutes
-        else:
-            tf = 3600.0  # hours
+        lim = "where " + " and ".join(lims) if lims else ""
+        tf = 60.0 if self.type == PERIOD_MONTH else 3600.0
         return self.col.db.all(
             f"""
 select
@@ -566,18 +551,13 @@ group by day order by day"""
 
     def _daysStudied(self) -> Any:
         lims = []
-        num = self._periodDays()
-        if num:
+        if num := self._periodDays():
             lims.append(
                 "id > %d" % ((self.col.sched.day_cutoff - (num * 86400)) * 1000)
             )
-        rlim = self._revlogLimit()
-        if rlim:
+        if rlim := self._revlogLimit():
             lims.append(rlim)
-        if lims:
-            lim = "where " + " and ".join(lims)
-        else:
-            lim = ""
+        lim = "where " + " and ".join(lims) if lims else ""
         ret = self.col.db.first(
             """
 select count(), abs(min(day)) from (select
@@ -626,7 +606,7 @@ group by day order by day)"""
             ],
             conf=dict(
                 xaxis=dict(min=-0.5, max=ivlmax + 0.5),
-                yaxes=[dict(), dict(position="right", max=105)],
+                yaxes=[{}, dict(position="right", max=105)],
             ),
         )
         i: list[str] = []
@@ -746,14 +726,8 @@ select count(), avg(ivl), max(ivl) from cards where did in %s and queue = {QUEUE
             lims.append(
                 "id > %d" % ((self.col.sched.day_cutoff - (days * 86400)) * 1000)
             )
-        if lims:
-            lim = "where " + " and ".join(lims)
-        else:
-            lim = ""
-        if self.col.sched_ver() == 1:
-            ease4repl = "3"
-        else:
-            ease4repl = "ease"
+        lim = "where " + " and ".join(lims) if lims else ""
+        ease4repl = "3" if self.col.sched_ver() == 1 else "ease"
         return self.col.db.all(
             f"""
 select (case
@@ -839,14 +813,13 @@ order by thetype, ease"""
     def _hourRet(self) -> Any:
         lim = self._revlogLimit()
         if lim:
-            lim = " and " + lim
+            lim = f" and {lim}"
         if self.col.sched_ver() == 1:
             sd = datetime.datetime.fromtimestamp(self.col.crt)
             rolloverHour = sd.hour
         else:
             rolloverHour = self.col.conf.get("rollover", 4)
-        pd = self._periodDays()
-        if pd:
+        if pd := self._periodDays():
             lim += " and id > %d" % ((self.col.sched.day_cutoff - (86400 * pd)) * 1000)
         return self.col.db.all(
             f"""
@@ -909,14 +882,10 @@ when you answer "good" on a review."""
         colon = ":"
         if bold:
             i.append(
-                ("<tr><td width=200 align=start>%s%s</td><td><b>%s</b></td></tr>")
-                % (a, colon, b)
+                f"<tr><td width=200 align=start>{a}{colon}</td><td><b>{b}</b></td></tr>"
             )
         else:
-            i.append(
-                ("<tr><td width=200 align=end>%s%s</td><td>%s</td></tr>")
-                % (a, colon, b)
-            )
+            i.append(f"<tr><td width=200 align=end>{a}{colon}</td><td>{b}</td></tr>")
 
     def _lineTbl(self, i: list[str]) -> str:
         return "<table width=400>" + "".join(i) + "</table>"
@@ -949,15 +918,15 @@ from cards where did in %s"""
 
     def footer(self) -> str:
         b = "<br><br><font size=1>"
-        b += "Generated on %s" % time.asctime(time.localtime(time.time()))
+        b += f"Generated on {time.asctime(time.localtime(time.time()))}"
         b += "<br>"
         if self.wholeCollection:
             deck = "whole collection"
         else:
             deck = self.col.decks.current()["name"]
-        b += "Scope: %s" % deck
+        b += f"Scope: {deck}"
         b += "<br>"
-        b += "Period: %s" % ["1 month", "1 year", "deck life"][self.type]
+        b += f'Period: {["1 month", "1 year", "deck life"][self.type]}'
         return b
 
     # Tools
@@ -977,11 +946,11 @@ from cards where did in %s"""
             conf = {}
         # display settings
         if type == "pie":
-            conf["legend"] = {"container": "#%sLegend" % id, "noColumns": 2}
+            conf["legend"] = {"container": f"#{id}Legend", "noColumns": 2}
         else:
-            conf["legend"] = {"container": "#%sLegend" % id, "noColumns": 10}
+            conf["legend"] = {"container": f"#{id}Legend", "noColumns": 10}
         conf["series"] = dict(stack=True)
-        if not "yaxis" in conf:
+        if "yaxis" not in conf:
             conf["yaxis"] = {}
         conf["yaxis"]["labelWidth"] = 40
         if "xaxis" not in conf:
@@ -1084,38 +1053,38 @@ $(function () {
         return self.col.sched._deck_limit()
 
     def _revlogLimit(self) -> str:
-        if self.wholeCollection:
-            return ""
-        return "cid in (select id from cards where did in %s)" % ids2str(
-            self.col.decks.active()
+        return (
+            ""
+            if self.wholeCollection
+            else f"cid in (select id from cards where did in {ids2str(self.col.decks.active())})"
         )
 
     def _title(self, title: str, subtitle: str = "") -> str:
         return f"<h1>{title}</h1>{subtitle}"
 
     def _deckAge(self, by: str) -> int:
-        lim = self._revlogLimit()
-        if lim:
-            lim = " where " + lim
-        if by == "review":
-            t = self.col.db.scalar("select id from revlog %s order by id limit 1" % lim)
-        elif by == "add":
-            if self.wholeCollection:
-                lim = ""
-            else:
-                lim = "where did in %s" % ids2str(self.col.decks.active())
-            t = self.col.db.scalar("select id from cards %s order by id limit 1" % lim)
-        if not t:
-            period = 1
-        else:
-            period = max(1, int(1 + ((self.col.sched.day_cutoff - (t / 1000)) / 86400)))
-        return period
+        if lim := self._revlogLimit():
+            lim = f" where {lim}"
+        if by == "add":
+            lim = (
+                ""
+                if self.wholeCollection
+                else f"where did in {ids2str(self.col.decks.active())}"
+            )
+            t = self.col.db.scalar(f"select id from cards {lim} order by id limit 1")
+        elif by == "review":
+            t = self.col.db.scalar(f"select id from revlog {lim} order by id limit 1")
+        return (
+            1
+            if not t
+            else max(
+                1, int(1 + ((self.col.sched.day_cutoff - (t / 1000)) / 86400))
+            )
+        )
 
     def _periodDays(self) -> int | None:
         start, end, chunk = self.get_start_end_chunk()
-        if end is None:
-            return None
-        return end * chunk
+        return None if end is None else end * chunk
 
     def _avgDay(self, tot: float, num: int, unit: str) -> str:
         vals = []

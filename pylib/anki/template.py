@@ -159,11 +159,7 @@ class TemplateRenderContext:
         self._fields: dict | None = None
         self._latex_svg = False
         self._question_side: bool = True
-        if not notetype:
-            self._note_type = note.note_type()
-        else:
-            self._note_type = notetype
-
+        self._note_type = note.note_type() if not notetype else notetype
         # if you need to store extra state to share amongst rendering
         # hooks, you can insert it into this dictionary
         self.extra_state: dict[str, Any] = {}
@@ -186,10 +182,7 @@ class TemplateRenderContext:
             fields["Type"] = self._note_type["name"]
             fields["Deck"] = self._col.decks.name(self._card.current_deck_id())
             fields["Subdeck"] = DeckManager.basename(fields["Deck"])
-            if self._template:
-                fields["Card"] = self._template["name"]
-            else:
-                fields["Card"] = ""
+            fields["Card"] = self._template["name"] if self._template else ""
             flag = self._card.user_flag()
             fields["CardFlag"] = flag and f"flag{flag}" or ""
             self._fields = fields

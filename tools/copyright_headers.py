@@ -77,11 +77,7 @@ for dirpath, dirnames, fnames in os.walk("."):
     if ".bazel" in dirnames:
         dirnames.remove(".bazel")
 
-    ignore = False
-    for folder in ignored_folders:
-        if folder in dirpath:
-            ignore = True
-            break
+    ignore = any(folder in dirpath for folder in ignored_folders)
     if ignore:
         continue
 

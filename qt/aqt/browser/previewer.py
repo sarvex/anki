@@ -332,19 +332,15 @@ class BrowserPreviewer(MultiCardPreviewer):
         super().__init__(parent=parent, mw=mw, on_close=on_close)
 
     def card(self) -> Card | None:
-        if self._parent.singleCard:
-            return self._parent.card
-        else:
-            return None
+        return self._parent.card if self._parent.singleCard else None
 
     def card_changed(self) -> bool:
-        c = self.card()
-        if not c:
-            return True
-        else:
+        if c := self.card():
             changed = c.id != self._last_card_id
             self._last_card_id = c.id
             return changed
+        else:
+            return True
 
     def _on_prev_card(self) -> None:
         self._parent.onPreviousCard()

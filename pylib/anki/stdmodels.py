@@ -49,10 +49,7 @@ def get_stock_notetypes(
         out.append((note_type["name"], instance_getter(note_type)))
     # add extras from add-ons
     for (name_or_func, func) in models:
-        if not isinstance(name_or_func, str):
-            name = name_or_func()
-        else:
-            name = name_or_func
+        name = name_or_func() if not isinstance(name_or_func, str) else name_or_func
         out.append((name, func))
     return out
 

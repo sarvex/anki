@@ -132,22 +132,14 @@ class StudyDeck(QDialog):
         l = self.form.list
         l.clear()
         l.addItems(self.names)
-        if focus in self.names:
-            idx = self.names.index(focus)
-        else:
-            idx = 0
+        idx = self.names.index(focus) if focus in self.names else 0
         l.setCurrentRow(idx)
         l.scrollToItem(l.item(idx), QAbstractItemView.ScrollHint.PositionAtCenter)
 
     def _matches(self, name: str, filt: str) -> bool:
         name = name.lower()
         filt = filt.lower()
-        if not filt:
-            return True
-        for word in filt.split(" "):
-            if word not in name:
-                return False
-        return True
+        return True if not filt else all(word in name for word in filt.split(" "))
 
     def onReset(self) -> None:
         # model updated?

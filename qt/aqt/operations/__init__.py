@@ -157,11 +157,7 @@ class CollectionOp(Generic[ResultWithChanges]):
 
         assert mw
 
-        if isinstance(result, OpChanges):
-            changes = result
-        else:
-            changes = result.changes  # type: ignore[union-attr]
-
+        changes = result if isinstance(result, OpChanges) else result.changes
         # fire new hook
         aqt.gui_hooks.operation_did_execute(changes, handler)
         # fire legacy hook so old code notices changes

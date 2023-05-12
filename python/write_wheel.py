@@ -116,8 +116,7 @@ def merge_sources(contents, root, exclude):
 
 def split_wheel_path(path: str):
     path2 = Path(path)
-    components = path2.stem.split("-", maxsplit=2)
-    return components
+    return path2.stem.split("-", maxsplit=2)
 
 
 class ExtraRequires:
@@ -136,11 +135,7 @@ name, version, tag = split_wheel_path(wheel_path)
 def exclude_aqt(path: Path) -> bool:
     if path.suffix in [".ui", ".scss", ".map", ".ts"]:
         return True
-    if path.name.startswith("tsconfig"):
-        return True
-    if "/aqt/data" in str(path):
-        return True
-    return False
+    return True if path.name.startswith("tsconfig") else "/aqt/data" in str(path)
 
 
 def exclude_nothing(path: Path) -> bool:
@@ -151,11 +146,7 @@ def extract_requirements(path: Path) -> list[str]:
     return path.read_text().splitlines()
 
 
-if name == "aqt":
-    exclude = exclude_aqt
-else:
-    exclude = exclude_nothing
-
+exclude = exclude_aqt if name == "aqt" else exclude_nothing
 contents: dict[str, str] = {}
 merge_sources(contents, src_root, exclude)
 merge_sources(contents, generated_root, exclude)
@@ -167,7 +158,7 @@ if name == "anki":
     top_level = None
 else:
     all_requires = extract_requirements(Path("python/requirements.aqt.in")) + [
-        "anki==" + version,
+        f"anki=={version}",
         ExtraRequires(
             "qt5",
             [

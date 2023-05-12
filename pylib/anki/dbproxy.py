@@ -72,15 +72,13 @@ class DBProxy:
         return [x[0] for x in self._query(sql, *args, first_row_only=False, **kwargs)]
 
     def first(self, sql: str, *args: ValueForDB, **kwargs: ValueForDB) -> Row | None:
-        rows = self._query(sql, *args, first_row_only=True, **kwargs)
-        if rows:
+        if rows := self._query(sql, *args, first_row_only=True, **kwargs):
             return rows[0]
         else:
             return None
 
     def scalar(self, sql: str, *args: ValueForDB, **kwargs: ValueForDB) -> ValueFromDB:
-        rows = self._query(sql, *args, first_row_only=True, **kwargs)
-        if rows:
+        if rows := self._query(sql, *args, first_row_only=True, **kwargs):
             return rows[0][0]
         else:
             return None
@@ -94,10 +92,7 @@ class DBProxy:
 
     def executemany(self, sql: str, args: Iterable[Sequence[ValueForDB]]) -> None:
         self.modified_in_python = True
-        if isinstance(args, list):
-            list_args = args
-        else:
-            list_args = list(args)
+        list_args = args if isinstance(args, list) else list(args)
         self._backend.db_execute_many(sql, list_args)
 
 

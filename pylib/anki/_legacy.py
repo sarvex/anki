@@ -21,9 +21,7 @@ DeprecatedAliasTarget = Union[Callable, VariableTarget]
 def _target_to_string(target: DeprecatedAliasTarget | None) -> str:
     if target is None:
         return ""
-    if name := getattr(target, "__name__", None):
-        return name
-    return target[1]  # type: ignore
+    return name if (name := getattr(target, "__name__", None)) else target[1]
 
 
 def partial_path(full_path: str, components: int) -> str:

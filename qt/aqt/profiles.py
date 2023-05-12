@@ -45,10 +45,7 @@ class VideoDriver(Enum):
 
     @staticmethod
     def default_for_platform() -> VideoDriver:
-        if is_mac or qtmajor > 5:
-            return VideoDriver.OpenGL
-        else:
-            return VideoDriver.Software
+        return VideoDriver.OpenGL if is_mac or qtmajor > 5 else VideoDriver.Software
 
     def constrained_to_platform(self) -> VideoDriver:
         if self == VideoDriver.ANGLE and not VideoDriver.supports_angle():
@@ -159,35 +156,29 @@ class ProfileManager:
         return n
 
     def _unpickle(self, data: bytes) -> Any:
+
+
+
         class Unpickler(pickle.Unpickler):
             def find_class(self, class_module: str, name: str) -> Any:
                 # handle sip lookup ourselves, mapping to current Qt version
-                if class_module == "sip" or class_module.endswith(".sip"):
-
-                    def unpickle_type(module: str, klass: str, args: Any) -> Any:
-                        if qtmajor > 5:
-                            module = module.replace("Qt5", "Qt6")
-                        else:
-                            module = module.replace("Qt6", "Qt5")
-                        if klass == "QByteArray":
-                            if module.startswith("PyQt4"):
-                                # can't trust str objects from python 2
-                                return QByteArray()
-                            else:
-                                # return the bytes directly
-                                return args[0]
-                        elif name == "_unpickle_enum":
-                            if qtmajor == 5:
-                                return sip._unpickle_enum(module, klass, args)  # type: ignore
-                            else:
-                                # old style enums can't be unpickled
-                                return None
-                        else:
-                            return sip._unpickle_type(module, klass, args)  # type: ignore
-
-                    return unpickle_type
-                else:
+                if class_module != "sip" and not class_module.endswith(".sip"):
                     return super().find_class(class_module, name)
+
+                def unpickle_type(module: str, klass: str, args: Any) -> Any:
+                    if qtmajor > 5:
+                        module = module.replace("Qt5", "Qt6")
+                    else:
+                        module = module.replace("Qt6", "Qt5")
+                    if klass == "QByteArray":
+                        return QByteArray() if module.startswith("PyQt4") else args[0]
+                    elif name == "_unpickle_enum":
+                        return sip._unpickle_enum(module, klass, args) if qtmajor == 5 else None
+                    else:
+                        return sip._unpickle_type(module, klass, args)  # type: ignore
+
+                return unpickle_type
+
 
         up = Unpickler(io.BytesIO(data), errors="ignore")
         return up.load()
@@ -385,7 +376,7 @@ class ProfileManager:
         # open DB file and read data
         try:
             self.db = DB(path)
-            if not self.db.scalar("pragma integrity_check") == "ok":
+            if self.db.scalar("pragma integrity_check") != "ok":
                 raise Exception("corrupt db")
             self.db.execute(
                 """
@@ -481,10 +472,7 @@ create table if not exists profiles
     ######################################################################
 
     def _gldriver_path(self) -> str:
-        if qtmajor < 6:
-            fname = "gldriver"
-        else:
-            fname = "gldriver6"
+        fname = "gldriver" if qtmajor < 6 else "gldriver6"
         return os.path.join(self.base, fname)
 
     def video_driver(self) -> VideoDriver:

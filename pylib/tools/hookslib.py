@@ -60,10 +60,7 @@ class Hook:
         return f"{self.name}_{self.kind()}"
 
     def kind(self) -> str:
-        if self.return_type is not None:
-            return "filter"
-        else:
-            return "hook"
+        return "filter" if self.return_type is not None else "hook"
 
     def classname(self) -> str:
         return f"_{stringcase.pascalcase(self.full_name())}"
@@ -75,12 +72,8 @@ class Hook:
 
     def code(self) -> str:
         appenddoc = f"({', '.join(self.args or [])})"
-        if self.doc:
-            classdoc = f"    '''{self.doc}'''\n"
-        else:
-            classdoc = ""
-        code = f"""\
-class {self.classname()}:
+        classdoc = f"    '''{self.doc}'''\n" if self.doc else ""
+        return f"""\\n            #class {self.classname()}:
 {classdoc}{self.list_code()}
     
     def append(self, callback: {self.callable()}) -> None:
@@ -97,7 +90,6 @@ class {self.classname()}:
 {self.fire_code()}
 {self.name} = {self.classname()}()
 """
-        return code
 
     def fire_code(self) -> str:
         if self.return_type is not None:

@@ -168,18 +168,14 @@ class Browser(QMainWindow):
         focused = current_window() == self
         self.table.op_executed(changes, handler, focused)
         self.sidebar.op_executed(changes, handler, focused)
-        if changes.note_text:
-            if handler is not self.editor:
-                # fixme: this will leave the splitter shown, but with no current
-                # note being edited
-                note = self.editor.note
-                if note:
-                    try:
-                        note.load()
-                    except NotFoundError:
-                        self.editor.set_note(None)
-                        return
-                    self.editor.set_note(note)
+        if changes.note_text and handler is not self.editor:
+            if note := self.editor.note:
+                try:
+                    note.load()
+                except NotFoundError:
+                    self.editor.set_note(None)
+                    return
+                self.editor.set_note(note)
 
         if changes.browser_table and changes.card:
             self.card = self.table.get_single_selected_card()
@@ -841,10 +837,7 @@ class Browser(QMainWindow):
 
     def _prompt_for_tags(self, prompt: str) -> str | None:
         (tags, ok) = getTag(self, self.col, prompt)
-        if not ok:
-            return None
-        else:
-            return tags
+        return None if not ok else tags
 
     @no_arg_trigger
     @ensure_editor_saved

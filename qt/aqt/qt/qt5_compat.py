@@ -330,8 +330,10 @@ def _instrument_type(
     type = getattr(module, type_name)
     renamed_attrs = _renamed_enum_cases.get(type_name, {})
 
+
+
     class QtClassProxyType(type.__class__):
-        def __getattr__(cls, provided_name):  # pylint: disable=no-self-argument
+        def __getattr__(self, provided_name):  # pylint: disable=no-self-argument
             # we know this is not an enum
             if provided_name == "__pyqtSignature__":
                 raise AttributeError
@@ -351,6 +353,7 @@ def _instrument_type(
                 return val
 
             return getattr(type, name)
+
 
     class QtClassProxy(
         type, metaclass=QtClassProxyType

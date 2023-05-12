@@ -68,7 +68,4 @@ def without_qt5_compat_wrapper(cls: _T) -> _T:
     """Remove Qt5 compat wrapper from Qt class, if active.
 
     Only needed for a few Qt APIs that deal with QVariants."""
-    if fn := getattr(cls, "_without_compat_wrapper", None):
-        return fn()
-    else:
-        return cls
+    return fn() if (fn := getattr(cls, "_without_compat_wrapper", None)) else cls

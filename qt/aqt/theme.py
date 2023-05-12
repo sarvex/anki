@@ -103,7 +103,7 @@ class ThemeManager:
         from aqt.utils import aqt_data_folder
 
         if m := re.match(r"(?:mdi:)(.+)$", path):
-            name = m.group(1)
+            name = m[1]
         else:
             return path
 
@@ -117,16 +117,8 @@ class ThemeManager:
 
     def icon_from_resources(self, path: str | ColoredIcon) -> QIcon:
         "Fetch icon from Qt resources."
-        if self.night_mode:
-            cache = self._icon_cache_light
-        else:
-            cache = self._icon_cache_dark
-
-        if isinstance(path, str):
-            key = path
-        else:
-            key = f"{path.path}-{path.color}"
-
+        cache = self._icon_cache_light if self.night_mode else self._icon_cache_dark
+        key = path if isinstance(path, str) else f"{path.path}-{path.color}"
         icon = cache.get(key)
         if icon:
             return icon
@@ -196,12 +188,7 @@ class ThemeManager:
         if m := re.match(
             r"rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+\.*\d+?)\)", self.var(colors)
         ):
-            return QColor(
-                int(m.group(1)),
-                int(m.group(2)),
-                int(m.group(3)),
-                int(255 * float(m.group(4))),
-            )
+            return QColor(int(m[1]), int(m[2]), int(m[3]), int(255 * float(m[4])))
         return QColor(self.var(colors))
 
     def _determine_night_mode(self) -> bool:
@@ -353,18 +340,14 @@ def set_macos_dark_mode(enabled: bool) -> bool:
     "True if setting successful."
     from aqt._macos_helper import macos_helper
 
-    if not macos_helper:
-        return False
-    return macos_helper.set_darkmode_enabled(enabled)
+    return macos_helper.set_darkmode_enabled(enabled) if macos_helper else False
 
 
 def get_macos_dark_mode() -> bool:
     "True if macOS system is currently in dark mode."
     from aqt._macos_helper import macos_helper
 
-    if not macos_helper:
-        return False
-    return macos_helper.system_is_dark()
+    return False if not macos_helper else macos_helper.system_is_dark()
 
 
 def get_linux_dark_mode() -> bool:

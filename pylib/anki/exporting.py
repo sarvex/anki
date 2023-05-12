@@ -50,9 +50,8 @@ class Exporter:
 
     def exportInto(self, path: str) -> None:
         self._escapeCount = 0
-        file = open(path, "wb")
-        self.doExport(file)
-        file.close()
+        with open(path, "wb") as file:
+            self.doExport(file)
 
     def processText(self, text: str) -> str:
         if self.includeHTML is False:
@@ -215,9 +214,7 @@ class AnkiExporter(Exporter):
         # copy cards, noting used nids
         nids = {}
         data: list[Sequence] = []
-        for row in self.src.db.execute(
-            "select * from cards where id in " + ids2str(cids)
-        ):
+        for row in self.src.db.execute(f"select * from cards where id in {ids2str(cids)}"):
             # clear flags
             row = list(row)
             row[-2] = 0
@@ -229,7 +226,7 @@ class AnkiExporter(Exporter):
         # notes
         strnids = ids2str(list(nids.keys()))
         notedata = []
-        for row in self.src.db.all("select * from notes where id in " + strnids):
+        for row in self.src.db.all(f"select * from notes where id in {strnids}"):
             # remove system tags if not exporting scheduling info
             if not self.includeSched:
                 row = list(row)
@@ -239,10 +236,12 @@ class AnkiExporter(Exporter):
             "insert into notes values (?,?,?,?,?,?,?,?,?,?,?)", notedata
         )
         # models used by the notes
-        mids = self.dst.db.list("select distinct mid from notes where id in " + strnids)
+        mids = self.dst.db.list(
+            f"select distinct mid from notes where id in {strnids}"
+        )
         # card history and revlog
         if self.includeSched:
-            data = self.src.db.all("select * from revlog where cid in " + ids2str(cids))
+            data = self.src.db.all(f"select * from revlog where cid in {ids2str(cids)}")
             self.dst.db.executemany(
                 "insert into revlog values (?,?,?,?,?,?,?,?,?)", data
             )
@@ -263,9 +262,8 @@ class AnkiExporter(Exporter):
                 continue
             if dids and d["id"] not in dids:
                 continue
-            if not d["dyn"] and d["conf"] != 1:
-                if self.includeSched:
-                    dconfs[d["conf"]] = True
+            if not d["dyn"] and d["conf"] != 1 and self.includeSched:
+                dconfs[d["conf"]] = True
             if not self.includeSched:
                 # scheduling not included, so reset deck settings to default
                 d = dict(d)
@@ -297,10 +295,11 @@ class AnkiExporter(Exporter):
                     if fname.startswith("_"):
                         # Scan all models in mids for reference to fname
                         for m in self.src.models.all():
-                            if int(m["id"]) in mids:
-                                if self._modelHasMedia(m, fname):
-                                    media[fname] = True
-                                    break
+                            if int(m["id"]) in mids and self._modelHasMedia(
+                                m, fname
+                            ):
+                                media[fname] = True
+                                break
         self.mediaFiles = list(media.keys())
         self.dst.crt = self.src.crt
         # todo: tags?
@@ -320,11 +319,7 @@ class AnkiExporter(Exporter):
         # First check the styling
         if fname in model["css"]:
             return True
-        # If no reference to fname then check the templates as well
-        for t in model["tmpls"]:
-            if fname in t["qfmt"] or fname in t["afmt"]:
-                return True
-        return False
+        return any(fname in t["qfmt"] or fname in t["afmt"] for t in model["tmpls"])
 
 
 # Packaged Anki decks
@@ -378,12 +373,12 @@ class AnkiPackageExporter(AnkiExporter):
     def _exportMedia(self, z: ZipFile, files: list[str], fdir: str) -> dict[str, str]:
         media = {}
         for c, file in enumerate(files):
-            cStr = str(c)
             file = hooks.media_file_filter(file)
             mpath = os.path.join(fdir, file)
             if os.path.isdir(mpath):
                 continue
             if os.path.exists(mpath):
+                cStr = str(c)
                 if re.search(r"\.svg$", file, re.IGNORECASE):
                     z.write(mpath, cStr, zipfile.ZIP_DEFLATED)
                 else:
@@ -465,10 +460,7 @@ class AnkiCollectionPackage21bExporter(AnkiCollectionPackageExporter):
 
 def exporters(col: Collection) -> list[tuple[str, Any]]:
     def id(obj) -> tuple[str, Exporter]:
-        if callable(obj.key):
-            key_str = obj.key(col)
-        else:
-            key_str = obj.key
+        key_str = obj.key(col) if callable(obj.key) else obj.key
         return (f"{key_str} (*{obj.ext})", obj)
 
     exps = [

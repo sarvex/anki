@@ -100,14 +100,13 @@ import anki.collection
 def _tr(col: anki.collection.Collection | None) -> Any:
     if col:
         return col.tr
-    else:
-        print("routine in consts.py should be passed col")
-        import traceback
+    print("routine in consts.py should be passed col")
+    import traceback
 
-        traceback.print_stack(file=sys.stdout)
-        from anki.lang import tr_legacyglobal
+    traceback.print_stack(file=sys.stdout)
+    from anki.lang import tr_legacyglobal
 
-        return tr_legacyglobal
+    return tr_legacyglobal
 
 
 def new_card_order_labels(col: anki.collection.Collection | None) -> dict[int, Any]:

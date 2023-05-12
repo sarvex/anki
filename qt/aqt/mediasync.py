@@ -91,13 +91,13 @@ class MediaSyncer:
     def _handle_sync_error(self, exc: BaseException) -> None:
         if isinstance(exc, Interrupted):
             self._log_and_notify(tr.sync_media_aborted())
-            return
         else:
             # Avoid popups for errors; they can cause a deadlock if
             # a modal window happens to be active, or a duplicate auth
             # failed message if the password is changed.
             self._log_and_notify(str(exc))
-            return
+
+        return
 
     def entries(self) -> list[LogEntryWithTime]:
         return self._log
@@ -139,10 +139,7 @@ class MediaSyncer:
         if self.is_syncing():
             return 0
 
-        if self._log:
-            last = self._log[-1].time
-        else:
-            last = 0
+        last = self._log[-1].time if self._log else 0
         return int_time() - last
 
 

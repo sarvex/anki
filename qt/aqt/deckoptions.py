@@ -72,7 +72,7 @@ def confirm_deck_then_display_options(active_card: Card | None = None) -> None:
         if card.odid and card.odid != decks[0]["id"]:
             decks.append(aqt.mw.col.decks.get(card.odid))
 
-        if not any(d["id"] == card.did for d in decks):
+        if all(d["id"] != card.did for d in decks):
             decks.append(aqt.mw.col.decks.get(card.did))
 
     if len(decks) == 1:
@@ -104,11 +104,11 @@ def display_options_for_deck_id(deck_id: DeckId) -> None:
 
 
 def display_options_for_deck(deck: DeckDict) -> None:
-    if not deck["dyn"]:
-        if KeyboardModifiersPressed().shift or aqt.mw.col.sched_ver() == 1:
-            deck_legacy = aqt.mw.col.decks.get(DeckId(deck["id"]))
-            aqt.deckconf.DeckConf(aqt.mw, deck_legacy)
-        else:
-            DeckOptionsDialog(aqt.mw, deck)
-    else:
+    if deck["dyn"]:
         aqt.dialogs.open("FilteredDeckConfigDialog", aqt.mw, deck_id=deck["id"])
+
+    elif KeyboardModifiersPressed().shift or aqt.mw.col.sched_ver() == 1:
+        deck_legacy = aqt.mw.col.decks.get(DeckId(deck["id"]))
+        aqt.deckconf.DeckConf(aqt.mw, deck_legacy)
+    else:
+        DeckOptionsDialog(aqt.mw, deck)

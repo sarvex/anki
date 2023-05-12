@@ -184,9 +184,7 @@ def prompt_for_file_then_import(mw: aqt.main.AnkiQt) -> None:
 def get_file_path(mw: aqt.main.AnkiQt) -> str | None:
     filter = without_unicode_isolation(
         tr.importing_all_supported_formats(
-            val="({})".format(
-                " ".join(f"*{ending}" for ending in all_accepted_file_endings(mw))
-            )
+            val=f'({" ".join(f"*{ending}" for ending in all_accepted_file_endings(mw))})'
         )
     )
     if file := getFile(mw, tr.actions_import(), None, key="import", filter=filter):

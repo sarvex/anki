@@ -32,10 +32,10 @@ T = TypeVar("T")
 def chunked_list(l: Iterable[T], n: int) -> Iterable[list[T]]:
     l = iter(l)
     while True:
-        res = list(itertools.islice(l, n))
-        if not res:
+        if res := list(itertools.islice(l, n)):
+            yield res
+        else:
             return
-        yield res
 
 
 def check_media_db(mw: aqt.AnkiQt) -> None:
@@ -120,12 +120,13 @@ class MediaChecker:
             box.addButton(b, QDialogButtonBox.ButtonRole.RejectRole)
             qconnect(b.clicked, lambda c: self._on_trash_files(output.unused))
 
-        if output.missing:
-            if any(map(lambda x: x.startswith("latex-"), output.missing)):
-                b = QPushButton(tr.media_check_render_latex())
-                b.setAutoDefault(False)
-                box.addButton(b, QDialogButtonBox.ButtonRole.RejectRole)
-                qconnect(b.clicked, self._on_render_latex)
+        if output.missing and any(
+            map(lambda x: x.startswith("latex-"), output.missing)
+        ):
+            b = QPushButton(tr.media_check_render_latex())
+            b.setAutoDefault(False)
+            box.addButton(b, QDialogButtonBox.ButtonRole.RejectRole)
+            qconnect(b.clicked, self._on_render_latex)
 
         if output.have_trash:
             b = QPushButton(tr.media_check_empty_trash())

@@ -60,7 +60,7 @@ class CellRow:
     @staticmethod
     def generic(length: int, cell_text: str) -> CellRow:
         return CellRow(
-            ((cell_text, False) for cell in range(length)),
+            ((cell_text, False) for _ in range(length)),
             BrowserRow.COLOR_DEFAULT,
             "arial",
             12,
